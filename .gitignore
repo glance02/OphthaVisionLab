@@ -1,0 +1,84 @@
+# ==================== Python ====================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==================== Jupyter Notebook ====================
+.ipynb_checkpoints/
+*.ipynb
+
+# ==================== IDE & Editor ====================
+# VS Code
+.vscode/
+
+# Crossnote
+.crossnote/
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+
+# ==================== 数据集 ====================
+dataset/
+pretrain_weights/
+pretrained_weights/
+
+# ==================== 自定义分类目录 ====================
+FundusClassification/
+
+# ==================== 训练结果和输出 ====================
+results/
+myProcessResults/
+randomResults/
+outputs/
+checkpoints/
+
+# ==================== 日志文件 ====================
+*.log
+*.log.*
+nohup.out
+
+# ==================== 模型权重文件 ====================
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+
+# ==================== 临时文件 ====================
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ==================== 系统文件 ====================
+*.bak
+*.tmp
+*.cache
