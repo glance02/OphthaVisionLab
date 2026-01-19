@@ -1,4 +1,4 @@
-# Train a decoder for the single-modal classification task
+# Train a decoder for the single-modal classification task with fine-tuning support
 import sys
 sys.path.append('./')
 import os
@@ -118,27 +118,75 @@ def main(args):
     linear_classifier = linear_classifier.cuda()
     linear_classifier = nn.parallel.DistributedDataParallel(linear_classifier, device_ids=[args.gpu])
 
-    # set optimizer with stronger weight decay for better regularization
-    parameters = linear_classifier.parameters()
+    # set optimizer with fine-tuning support
+    if args.finetune:
+        # 分层学习率：backbone用小学习率，分类器用大学习率
+        print("Fine-tuning mode: training both backbone and classifier with different learning rates")
+        backbone_lr = args.lr * args.backbone_lr_ratio
+        classifier_lr = args.lr
+
+        parameters = [
+            {"params": model.parameters(), "lr": backbone_lr * (args.batch_size_per_gpu * utils.get_world_size()) / 256.},
+            {"params": linear_classifier.parameters(), "lr": classifier_lr * (args.batch_size_per_gpu * utils.get_world_size()) / 256.}
+        ]
+        print(f"Backbone LR: {backbone_lr:.6f}, Classifier LR: {classifier_lr:.6f}")
+    else:
+        # 只训练分类器，backbone冻结
+        print("Frozen backbone mode: training classifier only")
+        for param in model.parameters():
+            param.requires_grad = False
+        parameters = linear_classifier.parameters()
+
     optimizer = torch.optim.AdamW(
         parameters,
-        args.lr * (args.batch_size_per_gpu * utils.get_world_size()) / 256.,  # linear scaling rule
         betas=(0.9, 0.999),
-        weight_decay=args.weight_decay  # 使用可配置的weight_decay
+        weight_decay=args.weight_decay
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs, eta_min=0)
 
     # Optionally resume from a checkpoint
     to_restore = {"epoch": 0, "best_f1": 0., "patience_counter": 0}
     if args.load_from: # load the weights to re-start training the model
-        utils.restart_from_checkpoint(
-            args.load_from,
-            run_variables=to_restore,
-            state_dict=linear_classifier,
-            optimizer=optimizer,
-            scheduler=scheduler)
+        checkpoint = torch.load(args.load_from, map_location='cpu')
+
+        # 恢复训练变量
+        to_restore["epoch"] = checkpoint.get("epoch", 0)
+        to_restore["best_f1"] = checkpoint.get("best_f1", 0.)
+        to_restore["patience_counter"] = checkpoint.get("patience_counter", 0)
+
+        # 加载linear_classifier权重
+        if "state_dict" in checkpoint:
+            # 处理DDP包装的model
+            state_dict = checkpoint["state_dict"]
+            # 移除 'module.' 前缀（如果是从DDP保存的）
+            new_state_dict = {}
+            for k, v in state_dict.items():
+                if k.startswith('module.'):
+                    new_state_dict[k[7:]] = v
+                else:
+                    new_state_dict[k] = v
+            linear_classifier.load_state_dict(new_state_dict)
+
+        # 如果是微调checkpoint，加载model权重
+        if args.finetune and "model_state_dict" in checkpoint:
+            model.load_state_dict(checkpoint["model_state_dict"])
+            print("Loaded model weights from checkpoint for fine-tuning")
+
+        # 加载optimizer和scheduler
+        if "optimizer" in checkpoint and not args.test:
+            optimizer.load_state_dict(checkpoint["optimizer"])
+        if "scheduler" in checkpoint and not args.test:
+            scheduler.load_state_dict(checkpoint["scheduler"])
 
     if args.load_from and args.test:
+        # 加载完整的checkpoint（包括model如果存在）
+        checkpoint = torch.load(args.load_from, map_location='cpu')
+
+        # 如果是微调checkpoint且有model_state_dict，加载它
+        if "model_state_dict" in checkpoint:
+            model.load_state_dict(checkpoint["model_state_dict"])
+            print("Loaded finetuned model weights")
+
         # test the trained decoder
         if args.dataset_format == 'vfm':
             dataset_test = ClsImgs(root=args.data_path, split='test', transform=val_transform)
@@ -172,10 +220,13 @@ def main(args):
     # the main loop
     for epoch in range(start_epoch, args.epochs):
         train_loader.sampler.set_epoch(epoch)
-        model.eval()
+        if args.finetune:
+            model.train()  # 微调模式：backbone也训练
+        else:
+            model.eval()  # 冻结模式：backbone不训练
 
         linear_classifier.train()
-        train_stats = train(model, linear_classifier, optimizer, train_loader, epoch, args.n_last_blocks, args.avgpool_patchtokens)
+        train_stats = train(model, linear_classifier, optimizer, train_loader, epoch, args.n_last_blocks, args.avgpool_patchtokens, args.finetune)
         scheduler.step()
 
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()}, 'epoch': epoch}
@@ -227,12 +278,15 @@ def main(args):
 
                     save_dict = {
                         "epoch": epoch + 1,
-                        "state_dict": linear_classifier.state_dict(),
+                        "state_dict": linear_classifier.module.state_dict(),  # 使用.module访问原始模型
                         "optimizer": optimizer.state_dict(),
                         "scheduler": scheduler.state_dict(),
                         "best_f1": best_f1,
                         "patience_counter": patience_counter,
                     }
+                    # 如果微调，还需要保存model的状态
+                    if args.finetune:
+                        save_dict["model_state_dict"] = model.state_dict()
                     torch.save(save_dict, os.path.join(args.output_dir, "checkpoint_{}_linear.pth".format(args.checkpoint_key)))
             else:
                 # F1没有提升，增加计数器
@@ -247,25 +301,32 @@ def main(args):
     print("Training of the supervised linear classifier on frozen features completed.\nAnd the best F1-score: {f1:.4f}".format(f1=best_f1))
 
 
-def train(model, linear_classifier, optimizer, loader, epoch, n, avg_pool):
+def train(model, linear_classifier, optimizer, loader, epoch, n, avg_pool, finetune=False):
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     header = 'Epoch: [{}]'.format(epoch)
     for (inp, target, extras) in metric_logger.log_every(loader, 20, header):
         # move to gpu
         inp = inp.cuda(non_blocking=True)
-        target = target.cuda(non_blocking=True).long() # [B]
-        if len(target.shape) == 2:
-            target = target.squeeze()
+        target = target.cuda(non_blocking=True).long() # [B] or [B, 1]
+        # Ensure target has shape [B] (remove extra dimensions but keep batch dimension)
+        if len(target.shape) > 1:
+            target = target.squeeze(-1)  # Only squeeze the last dimension
 
         # forward
-        with torch.no_grad():
+        if finetune:
+            # 微调模式：计算backbone的梯度
             intermediate_output = model.get_intermediate_layers(inp, n)
-            if avg_pool == 0:
-                output = [x[:, 0] for x in intermediate_output]  # only retain CLS tokens
-            elif avg_pool == 1:
-                output = [torch.mean(intermediate_output[-1][:, 1:], dim=1)]  # only patch tokens
-            output = torch.cat(output, dim=-1)
+        else:
+            # 冻结模式：不计算backbone的梯度
+            with torch.no_grad():
+                intermediate_output = model.get_intermediate_layers(inp, n)
+
+        if avg_pool == 0:
+            output = [x[:, 0] for x in intermediate_output]  # only retain CLS tokens
+        elif avg_pool == 1:
+            output = [torch.mean(intermediate_output[-1][:, 1:], dim=1)]  # only patch tokens
+        output = torch.cat(output, dim=-1)
 
         output = linear_classifier(output)
 
@@ -274,6 +335,7 @@ def train(model, linear_classifier, optimizer, loader, epoch, n, avg_pool):
         if num_class > 1:  # for multi-class case
             loss = nn.CrossEntropyLoss()(output, target)
         else: # for binary class case
+            # output: [B, 1] -> [B], target: [B] (already processed above)
             loss = nn.BCEWithLogitsLoss()(output.squeeze(dim=1), target.float())
 
         # compute the gradients
@@ -302,9 +364,10 @@ def validate_network(val_loader, model, linear_classifier, n, avg_pool, dst_json
     for inp, target, extras in metric_logger.log_every(val_loader, 20, header):
         # move to gpu
         inp = inp.cuda(non_blocking=True)
-        target = target.cuda(non_blocking=True).long() # [B]
-        if len(target.shape) == 2:
-            target = target.squeeze()
+        target = target.cuda(non_blocking=True).long() # [B] or [B, 1]
+        # Ensure target has shape [B] (remove extra dimensions but keep batch dimension)
+        if len(target.shape) > 1:
+            target = target.squeeze(-1)  # Only squeeze the last dimension
 
         # forward
         with torch.no_grad():
@@ -451,6 +514,9 @@ if __name__ == '__main__':
     parser.add_argument('--num_labels', default=5, type=int, help='Number of labels for linear classifier')
     parser.add_argument('--load_from', default=None, help='Path to load checkpoints to resume training')
     parser.add_argument('--test', action='store_true', help='Whether to run inference only')
+    # 微调相关参数
+    parser.add_argument('--finetune', action='store_true', help='Whether to fine-tune the entire model (backbone + classifier)')
+    parser.add_argument('--backbone_lr_ratio', default=0.1, type=float, help='Ratio of backbone learning rate to classifier LR (default: 0.1)')
     args = parser.parse_args()
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)

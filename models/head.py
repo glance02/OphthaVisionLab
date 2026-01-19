@@ -276,11 +276,8 @@ class ClsHead(nn.Module):
             self.classifier = nn.Sequential(
                 nn.Linear(channels[0], channels[1]),
             )
-        self.channel_bn = nn.BatchNorm2d(
-            self.embed_dim,
-            eps=1e-6, # default 1e-6
-            momentum=0.99, # default: 0.99
-        )
+        # Use LayerNorm instead of BatchNorm2d for better stability with small batches
+        self.channel_ln = nn.LayerNorm(self.embed_dim, eps=1e-6)
         self.init_weights()
 
     def init_weights(self):
@@ -291,12 +288,13 @@ class ClsHead(nn.Module):
 
 
     def forward(self, x):
-        if len(x.shape) == 2:
-            x = x.unsqueeze(2).unsqueeze(3)
-        # flatten
-        x = self.channel_bn(x)
-        x = x.view(x.size(0), -1)
-        # linear layer
+        # x shape: [B, C] or [B, C, 1, 1]
+        if len(x.shape) == 4:
+            # Remove spatial dimensions for LayerNorm
+            x = x.squeeze(-1).squeeze(-1)  # [B, C, 1, 1] -> [B, C]
+        # Apply LayerNorm (works with any batch size)
+        x = self.channel_ln(x)
+        # Forward through classifier
         return self.classifier(x)
 
 class RegHead(nn.Module):
@@ -316,11 +314,8 @@ class RegHead(nn.Module):
             nn.Dropout(p=0.1),
             nn.Linear(channels[2], channels[3]),
         )
-        self.channel_bn = nn.BatchNorm2d(
-            self.embed_dim,
-            eps=1e-6, # default 1e-6
-            momentum=0.99, # default: 0.99
-        )
+        # Use LayerNorm instead of BatchNorm2d for better stability with small batches
+        self.channel_ln = nn.LayerNorm(self.embed_dim, eps=1e-6)
         self.init_weights()
 
     def init_weights(self):
@@ -331,12 +326,13 @@ class RegHead(nn.Module):
 
 
     def forward(self, x):
-        if len(x.shape) == 2:
-            x = x.unsqueeze(2).unsqueeze(3)
-        # flatten
-        x = self.channel_bn(x)
-        x = x.view(x.size(0), -1)
-        # linear layer
+        # x shape: [B, C] or [B, C, 1, 1]
+        if len(x.shape) == 4:
+            # Remove spatial dimensions for LayerNorm
+            x = x.squeeze(-1).squeeze(-1)  # [B, C, 1, 1] -> [B, C]
+        # Apply LayerNorm (works with any batch size)
+        x = self.channel_ln(x)
+        # Forward through classifier
         return self.classifier(x)
 
 

@@ -47,7 +47,7 @@ class RandomAffine(transforms.RandomAffine):
     def __call__(self, img, target=None):
 
         if random.random() > 0.5: # 0.5 probality to apply this transform
-            return img if target is None else img, target
+            return img if target is None else (img, target)
 
         fill = self.fill
         if isinstance(img, torch.Tensor):
