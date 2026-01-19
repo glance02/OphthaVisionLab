@@ -1,0 +1,28 @@
+# 眼底图像分析系统 - 依赖包列表
+# 安装命令: pip install -r requirements_streamlit.txt
+
+# ===== Web框架 =====
+streamlit>=1.28.0
+
+# ===== 深度学习框架 =====
+torch>=1.13.0
+torchvision>=0.14.0
+
+# ===== 图像处理 =====
+Pillow>=9.0.0
+numpy>=1.21.0
+
+# ===== 其他依赖 =====
+requests>=2.28.0
+
+# ===== 通义千问SDK (可选) =====
+# 如需使用通义千问API生成AI报告，请取消下面的注释
+# dashscope>=1.10.0
+
+# ===== 项目现有依赖 (从setup.py或requirements.txt复制) =====
+timm>=0.6.0
+munkres>=1.1.4
+scikit-learn>=1.0.0
+miseval>=0.1.0
+opencv-python>=4.5.0
+matplotlib>=3.3.0
