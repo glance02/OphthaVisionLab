@@ -82,3 +82,5 @@ Thumbs.db
 *.bak
 *.tmp
 *.cache
+
+*.zip
