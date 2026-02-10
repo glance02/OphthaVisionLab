@@ -74,6 +74,7 @@ ViT Encoder (预训练 + 微调)
 | **预训练权重** | `pretrain_weights/VFM_Fundus_weights.pth` |
 | **任务类型** | 图像分割 (Segmentation) |
 | **输入尺寸** | 512 × 512 |
+| **性能** | Dice 分数 ≈ 78.17% |
 | **训练轮次** | 第 108 轮检查点 |
 | **用途** | 医学图像分割（如：视网膜血管分割） |
 
@@ -185,7 +186,7 @@ pip install torch torchvision pillow numpy
 **单张图像预测**:
 
 ```bash
-python inference_binary.py \
+python tools/inference_binary.py \
     --checkpoint myProcessResults/single_cls_260106_Binary_finetune/checkpoint_teacher_linear.pth \
     --pretrained_weights pretrain_weights/VFM_Fundus_weights.pth \
     --image path/to/your/image.jpg \
@@ -195,7 +196,7 @@ python inference_binary.py \
 **批量预测**:
 
 ```bash
-python inference_binary.py \
+python tools/inference_binary.py \
     --checkpoint myProcessResults/single_cls_260106_Binary_finetune/checkpoint_teacher_linear.pth \
     --pretrained_weights pretrain_weights/VFM_Fundus_weights.pth \
     --image_dir path/to/image/folder \
@@ -254,72 +255,48 @@ pip install torch torchvision pillow numpy tqdm
 
 #### 3. 使用方法
 
-**基本用法**:
+**单张图像分割**:
 
 ```bash
 python tools/seg_pth_use.py \
-    --checkpoint-dir results/single_seg_debug \
-    --image-path path/to/input_image.png \
-    --output-dir results/segmentation_outputs \
-    --pretrained-weights pretrain_weights/VFM_Fundus_weights.pth
+    --checkpoint results/single_seg_debug/checkpoint_108_linear.pth \
+    --pretrained-weights pretrain_weights/VFM_Fundus_weights.pth \
+    --image path/to/your/image.jpg \
+    --output seg_mask.png
+```
+
+**批量图像分割**:
+
+```bash
+python tools/seg_pth_use.py \
+    --checkpoint results/single_seg_debug/checkpoint_108_linear.pth \
+    --pretrained-weights pretrain_weights/VFM_Fundus_weights.pth \
+    --image-dir path/to/image/folder \
+    --output-dir ./seg_masks
 ```
 
 #### 4. 参数说明
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `--checkpoint-dir` | 存放 .pth checkpoint 文件的文件夹 | `results/single_seg_debug` |
-| `--image-path` | 输入图像路径 | - |
-| `--output-dir` | 输出分割结果图片的文件夹 | `results/seg_pth_outputs` |
-| `--pretrained-weights` | Encoder 预训练权重路径 | `pretrain_weights/VFM_Fundus_weights.pth` |
-| `--arch` | 模型架构 | `vit_base` |
-| `--patch-size` | Patch 大小 | `16` |
-| `--input-size` | 模型输入尺寸 | `512` |
-| `--num-labels` | 分割类别数 | `1` |
+| 参数 | 说明 | 必填 |
+|------|------|------|
+| `--checkpoint` | 训练好的分割模型 checkpoint 路径 | ✅ |
+| `--pretrained-weights` | 预训练权重路径（默认：pretrain_weights/VFM_Fundus_weights.pth） | ❌ |
+| `--image` | 单张图像路径 | ❌* |
+| `--image-dir` | 图像文件夹路径（批量预测） | ❌* |
+| `--output` | 单张图像的输出路径（默认：图像同目录下的 seg_mask.png） | ❌ |
+| `--output-dir` | 批量处理时的输出目录（默认：输入目录下的 seg_masks 文件夹） | ❌ |
+| `--arch` | 模型架构（默认：vit_base） | ❌ |
+| `--patch-size` | Patch 大小（默认：16） | ❌ |
+| `--input-size` | 模型输入尺寸（默认：512） | ❌ |
+| `--num-labels` | 分割类别数（默认：1） | ❌ |
+
+*注：`--image` 和 `--image-dir` 至少需要提供一个
 
 #### 5. 输出格式
 
-脚本会在 `--output-dir` 指定的目录下生成分割结果图片：
+**单张图像**: 输出黑白二值掩码图（分割区域白色255，背景黑色0）
 
-- 文件命名格式: `seg_{checkpoint_number}.png`
-- 图片格式: 二值掩码 (0 或 255)
-- 尺寸: 与输入图像相同
-
----
-
-## 快速开始
-
-### 环境准备
-
-1. **克隆项目**:
-```bash
-cd c:\Users\86199\Desktop\VisionFM
-```
-
-2. **安装依赖**:
-```bash
-pip install -r requirements.txt
-```
-
-### 二分类快速测试
-
-```bash
-# 使用你自己的图像
-python inference_binary.py \
-    --checkpoint myProcessResults/single_cls_260106_Binary_finetune/checkpoint_teacher_linear.pth \
-    --pretrained_weights pretrain_weights/VFM_Fundus_weights.pth \
-    --image your_image.jpg \
-    --finetune
-```
-
-### 分割快速测试
-
-```bash
-python tools/seg_pth_use.py \
-    --checkpoint-dir results/single_seg_debug \
-    --image-path your_image.png \
-    --output-dir output_segments
-```
+**批量处理**: 每张图像对应一个 `{原文件名}_mask.png` 掩码文件
 
 ---
 
@@ -330,7 +307,7 @@ python tools/seg_pth_use.py \
 | 模型 | 任务 | 数据集 | 指标 | 数值 |
 |------|------|--------|------|------|
 | 二分类 | Binary Classification | dataset260106 | F1 Score | ~80% |
-| 分割 | Vessel Segmentation | DRIVE | Dice | (待补充) |
+| 分割 | Vessel Segmentation | DRIVE | Dice | 0.7817 |
 
 ### 常见问题
 

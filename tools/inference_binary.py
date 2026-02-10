@@ -9,7 +9,7 @@ from pathlib import Path
 from PIL import Image
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import utils
 import models.vision_transformer as vit
