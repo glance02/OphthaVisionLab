@@ -87,7 +87,7 @@ class SegmentationService:
         # 4. 加载分割头权重
         checkpoint_path = Path(__file__).parent / "checkpoints" / "checkpoint_108_linear.pth"
         if checkpoint_path.exists():
-            checkpoint = torch.load(str(checkpoint_path), map_location='cpu')
+            checkpoint = torch.load(str(checkpoint_path), map_location='cpu', weights_only=False)
 
             # 去掉 'module.' 前缀并提取 head 权重
             state_dict = checkpoint['state_dict']

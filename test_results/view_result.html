@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisionFM 分割结果</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .card h3 {
+            margin-top: 0;
+            color: #409eff;
+        }
+        .image-container {
+            position: relative;
+            text-align: center;
+        }
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+        .overlay-container {
+            position: relative;
+        }
+        .overlay-container .base-image {
+            display: block;
+            width: 100%;
+        }
+        .overlay-container .overlay-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            opacity: 0.6;
+        }
+        .slider-container {
+            margin-top: 15px;
+        }
+        .slider-container label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
+        .info {
+            background: #e8f4ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .info h2 {
+            margin-top: 0;
+            color: #409eff;
+        }
+        .success {
+            color: #67c23a;
+            font-size: 24px;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎉 VisionFM 眼底血管分割测试结果</h1>
+
+    <div class="success">✅ 后端测试成功！</div>
+
+    <div class="info">
+        <h2>📊 测试信息</h2>
+        <p><strong>模型:</strong> VisionFM (ViT-Base + UNETR Head)</p>
+        <p><strong>预训练权重:</strong> VFM_Fundus_weights.pth (1.5 GB)</p>
+        <p><strong>分割权重:</strong> checkpoint_108_linear.pth (23 MB)</p>
+        <p><strong>Dice Score:</strong> 78.17%</p>
+        <p><strong>输入尺寸:</strong> 512x512</p>
+        <p><strong>阈值:</strong> 0.5</p>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h3>📷 原图</h3>
+            <div class="image-container">
+                <img src="test_results/1_original.png" alt="原图">
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🎭 分割掩码</h3>
+            <div class="image-container">
+                <img src="test_results/1_mask.png" alt="掩码">
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🔀 叠加显示</h3>
+            <div class="image-container overlay-container">
+                <img src="test_results/1_original.png" alt="原图" class="base-image">
+                <img src="test_results/1_mask.png" alt="掩码" class="overlay-image" id="overlayImage">
+            </div>
+            <div class="slider-container">
+                <label for="opacitySlider">掩码透明度: <span id="opacityValue">60%</span></label>
+                <input type="range" id="opacitySlider" min="0" max="100" value="60">
+            </div>
+        </div>
+    </div>
+
+    <div class="info" style="margin-top: 30px;">
+        <h2>🚀 下一步</h2>
+        <p>后端已验证正常工作！现在可以：</p>
+        <ol>
+            <li>访问 <a href="http://localhost:5173" target="_blank">http://localhost:5173</a> 使用 Web 界面</li>
+            <li>上传任意眼底图像进行分割</li>
+            <li>调整透明度查看血管分割效果</li>
+            <li>下载分割结果</li>
+        </ol>
+    </div>
+
+    <script>
+        // 透明度滑块
+        const slider = document.getElementById('opacitySlider');
+        const overlayImage = document.getElementById('overlayImage');
+        const opacityValue = document.getElementById('opacityValue');
+
+        slider.addEventListener('input', function() {
+            const opacity = this.value / 100;
+            overlayImage.style.opacity = opacity;
+            opacityValue.textContent = this.value + '%';
+        });
+    </script>
+</body>
+</html>

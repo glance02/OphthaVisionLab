@@ -119,19 +119,31 @@ class ModelFactory:
 
         # 加载 checkpoint
         if checkpoint_path and Path(checkpoint_path).exists():
-            checkpoint = torch.load(checkpoint_path, map_location='cpu')
+            checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
             state_dict = checkpoint['state_dict']
 
             # 去掉 'module.' 前缀并提取 head 权重
+            # checkpoint中的键格式: 'module.d1.deconv.weight' -> 去掉 'module.' -> 'd1.deconv.weight'
             head_state = {}
             for k, v in state_dict.items():
-                new_key = k[7:] if k.startswith('module.') else k
-                if new_key.startswith('head.'):
-                    head_state[new_key[5:]] = v
+                if k.startswith('module.'):
+                    # 去掉 'module.' 前缀
+                    new_key = k[7:]
+                    head_state[new_key] = v
+                elif not k.startswith('encoder'):  # 只加载head相关的权重
+                    head_state[k] = v
 
-            head.load_state_dict(head_state, strict=False)
-            best_dice = checkpoint.get('best_dice', 'N/A')
-            print(f"✓ 分割头权重加载成功 (Dice: {best_dice})")
+            # 检查是否有权重被提取
+            if len(head_state) > 0:
+                missing, unexpected = head.load_state_dict(head_state, strict=False)
+                best_dice = checkpoint.get('best_dice', 'N/A')
+                print(f"✓ 分割头权重加载成功 (Dice: {best_dice}, 加载参数: {len(head_state)})")
+                if missing:
+                    print(f"  缺失参数 (使用默认值): {len(missing)}")
+                if unexpected:
+                    print(f"  未匹配参数: {len(unexpected)}")
+            else:
+                print(f"⚠ 警告: 未能从checkpoint提取任何head权重!")
 
         # 组合模型
         model = SegModel(encoder, head).to(self.device).eval()
@@ -154,7 +166,7 @@ class ModelFactory:
 
         # 加载 checkpoint
         if checkpoint_path and Path(checkpoint_path).exists():
-            checkpoint = torch.load(checkpoint_path, map_location='cpu')
+            checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
 
             # 加载分类头权重
             if "state_dict" in checkpoint:
@@ -192,7 +204,7 @@ class ModelFactory:
 
         # 加载 checkpoint
         if checkpoint_path and Path(checkpoint_path).exists():
-            checkpoint = torch.load(checkpoint_path, map_location='cpu')
+            checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
 
             # 加载分类器权重
             if "classifier_state_dict" in checkpoint:

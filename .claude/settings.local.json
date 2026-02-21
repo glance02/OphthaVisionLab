@@ -11,7 +11,12 @@
       "Bash(\"D:\\\\personal_data\\\\visonFM_\\\\backend\\\\venv\\\\Scripts\\\\pip.exe\":*)",
       "Bash(curl:*)",
       "Bash(netstat:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(\"venv/Scripts/python.exe\" main.py)",
+      "Bash(\"backend/venv/Scripts/python.exe\" test_backend.py 1.png)",
+      "Bash(\"D:/personal_data/visonFM_/backend/venv/Scripts/pip.exe\":*)",
+      "Bash(venvScriptspython.exe:*)",
+      "Bash(venv/Scripts/python.exe:*)"
     ]
   }
 }

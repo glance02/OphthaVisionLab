@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(python:*)",
+      "Bash(venvScriptspython.exe:*)",
+      "Bash(\"venv/Scripts/python.exe\" -c \"import torch; ckpt=torch.load\\(''checkpoints/checkpoint_108_linear.pth'', map_location=''cpu'', weights_only=False\\); print\\(''Keys:'', list\\(ckpt.keys\\(\\)\\)\\); print\\(''Best Dice:'', ckpt.get\\(''best_dice''\\)\\); state=ckpt[''state_dict'']; print\\(''Total params:'', len\\(state\\)\\); print\\(''Sample:'', list\\(state.keys\\(\\)\\)[:3]\\)\")",
+      "Bash(\"venv/Scripts/python.exe\" quick_test.py)",
+      "Bash(\"venv/Scripts/python.exe\" check_weights.py)",
+      "Bash(\"venv/Scripts/python.exe\" debug_segmentation.py)",
+      "Bash(\"venv/Scripts/python.exe\" simple_visualize.py)"
+    ]
+  }
+}

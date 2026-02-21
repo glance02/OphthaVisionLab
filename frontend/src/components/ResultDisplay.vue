@@ -12,32 +12,18 @@
       </template>
     </el-alert>
 
-    <div class="image-comparison">
+    <div class="images-display">
       <!-- 原图 -->
       <div class="image-box">
-        <h4 class="image-title">原图</h4>
+        <h4 class="image-title">原始图片</h4>
         <div class="image-wrapper">
           <el-image :src="originalImage" fit="contain" class="result-image" />
         </div>
       </div>
 
-      <!-- 叠加结果 -->
-      <div class="image-box">
-        <h4 class="image-title">分割结果</h4>
-        <div class="image-wrapper overlay-wrapper">
-          <el-image :src="originalImage" fit="contain" class="result-image base-image" />
-          <el-image
-            :src="maskImage"
-            fit="contain"
-            class="result-image mask-image"
-            :style="{ opacity: maskOpacity }"
-          />
-        </div>
-      </div>
-
       <!-- 纯掩码 -->
       <div class="image-box">
-        <h4 class="image-title">纯掩码</h4>
+        <h4 class="image-title">血管分割掩码</h4>
         <div class="image-wrapper">
           <el-image :src="maskImage" fit="contain" class="result-image" />
         </div>
@@ -46,17 +32,6 @@
 
     <!-- 控制面板 -->
     <div class="controls-panel">
-      <div class="slider-container">
-        <span class="slider-label">掩码透明度: {{ (maskOpacity * 100).toFixed(0) }}%</span>
-        <el-slider
-          v-model="maskOpacity"
-          :min="0"
-          :max="1"
-          :step="0.01"
-          :show-tooltip="false"
-        />
-      </div>
-
       <div class="button-group">
         <el-button type="primary" @click="downloadOriginal">
           <el-icon><Download /></el-icon>
@@ -66,17 +41,12 @@
           <el-icon><Download /></el-icon>
           下载掩码
         </el-button>
-        <el-button type="warning" @click="downloadOverlay">
-          <el-icon><Download /></el-icon>
-          下载叠加图
-        </el-button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { Download } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -92,8 +62,6 @@ const props = withDefaults(defineProps<Props>(), {
   shape: '512x512'
 })
 
-const maskOpacity = ref(0.6)
-
 // 下载图片辅助函数
 const downloadImage = (url: string, filename: string) => {
   const link = document.createElement('a')
@@ -103,58 +71,30 @@ const downloadImage = (url: string, filename: string) => {
   ElMessage.success(`已下载: ${filename}`)
 }
 
-const downloadOriginal = () => {
-  downloadImage(props.originalImage, `visionfm_original_${Date.now()}.png`)
-}
-
 const downloadMask = () => {
   downloadImage(props.maskImage, `visionfm_mask_${Date.now()}.png`)
 }
 
-const downloadOverlay = async () => {
-  // 创建 Canvas 来合并原图和掩码
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-
-  const img1 = new Image()
-  const img2 = new Image()
-
-  img1.onload = () => {
-    canvas.width = img1.width
-    canvas.height = img1.height
-    ctx.drawImage(img1, 0, 0)
-
-    img2.onload = () => {
-      ctx.globalAlpha = maskOpacity.value
-      ctx.drawImage(img2, 0, 0)
-
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob)
-          downloadImage(url, `visionfm_overlay_${Date.now()}.png`)
-          URL.revokeObjectURL(url)
-        }
-      }, 'image/png')
-    }
-    img2.src = props.maskImage
-  }
-  img1.src = props.originalImage
+const downloadOriginal = () => {
+  downloadImage(props.originalImage, `visionfm_original_${Date.now()}.png`)
 }
 </script>
 
 <style scoped>
 .result-container {
   width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 16px;
 }
 
 .result-alert {
   margin-bottom: 20px;
 }
 
-.image-comparison {
+.images-display {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   margin-bottom: 24px;
 }
@@ -177,59 +117,113 @@ const downloadOverlay = async () => {
 }
 
 .image-wrapper {
-  position: relative;
   padding: 16px;
-  min-height: 300px;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.overlay-wrapper {
-  position: relative;
+  min-height: 300px;
 }
 
 .result-image {
   width: 100%;
   height: auto;
-  max-height: 280px;
-}
-
-.mask-image {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
-  bottom: 16px;
-  pointer-events: none;
+  max-height: 500px;
+  object-fit: contain;
 }
 
 .controls-panel {
   padding: 20px;
   background: var(--el-fill-color-lighter);
   border-radius: 8px;
-}
-
-.slider-container {
-  margin-bottom: 20px;
-}
-
-.slider-label {
-  display: block;
-  margin-bottom: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--el-text-color-primary);
+  text-align: center;
 }
 
 .button-group {
   display: flex;
+  justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
 }
 
 .button-group .el-button {
-  flex: 1;
-  min-width: 120px;
+  min-width: 140px;
+}
+
+/* 平板设备 (768px - 1024px) */
+@media (max-width: 1024px) {
+  .result-container {
+    max-width: 100%;
+  }
+
+  .images-display {
+    gap: 16px;
+  }
+
+  .result-image {
+    max-height: 400px;
+  }
+}
+
+/* 移动设备 (< 768px) */
+@media (max-width: 768px) {
+  .result-container {
+    padding: 0 12px;
+  }
+
+  .result-alert {
+    font-size: 14px;
+  }
+
+  .images-display {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .image-wrapper {
+    padding: 12px;
+    min-height: 250px;
+  }
+
+  .result-image {
+    max-height: 350px;
+  }
+
+  .image-title {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+
+  .controls-panel {
+    padding: 16px;
+  }
+
+  .button-group {
+    flex-direction: column;
+  }
+
+  .button-group .el-button {
+    width: 100%;
+    min-width: auto;
+  }
+}
+
+/* 小屏手机 (< 480px) */
+@media (max-width: 480px) {
+  .result-container {
+    padding: 0 8px;
+  }
+
+  .image-wrapper {
+    padding: 8px;
+    min-height: 200px;
+  }
+
+  .result-image {
+    max-height: 280px;
+  }
+
+  .controls-panel {
+    padding: 12px;
+  }
 }
 </style>

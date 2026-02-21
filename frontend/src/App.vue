@@ -382,29 +382,30 @@ const handleNewTask = () => {
   align-items: center;
   justify-content: center;
   padding: 0 !important;
-  height: 80px !important;
+  height: 70px !important;
 }
 
 .header-content {
   text-align: center;
+  padding: 0 16px;
 }
 
 .logo-section {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 4px;
 }
 
 .logo-icon {
-  font-size: 32px;
+  font-size: 28px;
   color: #409eff;
 }
 
 .app-title {
   margin: 0;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
@@ -413,7 +414,7 @@ const handleNewTask = () => {
 }
 
 .header-subtitle {
-  font-size: 14px;
+  font-size: 13px;
   color: #909399;
   margin-top: 4px;
 }
@@ -513,16 +514,126 @@ const handleNewTask = () => {
 }
 
 @media (max-width: 768px) {
+  .app-header {
+    height: 60px !important;
+  }
+
+  .header-content {
+    padding: 0 12px;
+  }
+
+  .logo-section {
+    gap: 8px;
+  }
+
+  .logo-icon {
+    font-size: 24px;
+  }
+
   .app-title {
-    font-size: 22px;
+    font-size: 20px;
+  }
+
+  .header-subtitle {
+    font-size: 12px;
   }
 
   .app-main {
     padding: 15px 10px !important;
   }
 
+  .task-selector-card,
+  .main-card {
+    margin-bottom: 15px;
+  }
+
+  .section-alert,
+  .warning-alert {
+    margin-bottom: 16px;
+  }
+
+  .upload-section,
+  .processing-section,
+  .result-section {
+    padding: 12px 0;
+  }
+
+  .progress-container {
+    margin: 24px 0;
+  }
+
+  .status-message {
+    font-size: 14px;
+  }
+
+  .action-buttons {
+    margin-top: 20px;
+  }
+
+  .action-buttons .el-button {
+    width: 100%;
+  }
+
+  .info-row {
+    margin-top: 20px;
+  }
+
   .info-card {
     margin-bottom: 15px;
+  }
+
+  .info-content p {
+    font-size: 13px;
+    margin: 6px 0;
+  }
+
+  .app-footer {
+    padding: 16px 12px !important;
+  }
+
+  .app-footer p {
+    font-size: 13px;
+  }
+
+  .footer-note {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header {
+    height: 55px !important;
+  }
+
+  .logo-icon {
+    font-size: 22px;
+  }
+
+  .app-title {
+    font-size: 18px;
+  }
+
+  .header-subtitle {
+    font-size: 11px;
+  }
+
+  .app-main {
+    padding: 12px 8px !important;
+  }
+
+  .info-content p {
+    font-size: 12px;
+  }
+}
+
+/* 平板设备 (769px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .app-main {
+    padding: 25px 20px !important;
+  }
+
+  .info-content p {
+    font-size: 13px;
   }
 }
 </style>
