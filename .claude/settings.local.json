@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(python:*)",
+      "Bash(\"D:\\\\personal_data\\\\visonFM_\\\\backend\\\\venv\\\\Scripts\\\\pip.exe\" install -r \"D:\\\\personal_data\\\\visonFM_\\\\backend\\\\requirements.txt\")",
+      "Bash(npm create vue@latest:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(\"venv\\\\Scripts\\\\python.exe\":*)",
+      "Bash(\"D:\\\\personal_data\\\\visonFM_\\\\backend\\\\venv\\\\Scripts\\\\pip.exe\":*)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
+    ]
+  }
+}

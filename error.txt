@@ -1,0 +1,59 @@
+Vue warn]: Unhandled error during execution of component event handler 
+  at <ImageUpload onUpload=fn<handleUpload> > 
+  at <ElCard class="main-card" shadow="hover" > 
+  at <ElMain class="app-main" > 
+  at <ElContainer class="main-container" > 
+  at <App>
+warn$1 @ runtime-core.esm-bundler.js:51
+logError @ runtime-core.esm-bundler.js:263
+handleError @ runtime-core.esm-bundler.js:255
+(匿名) @ runtime-core.esm-bundler.js:209
+Promise.catch
+callWithAsyncErrorHandling @ runtime-core.esm-bundler.js:208
+emit @ runtime-core.esm-bundler.js:4404
+(匿名) @ runtime-core.esm-bundler.js:8253
+handleFileChange @ ImageUpload.vue:66
+(匿名) @ use-handlers.ts:73
+Promise.then
+nextTick @ runtime-core.esm-bundler.js:289
+emitChange @ use-handlers.ts:73
+handleStart @ use-handlers.ts:128
+uploadFiles @ upload-content.vue:94
+callWithErrorHandling @ runtime-core.esm-bundler.js:199
+callWithAsyncErrorHandling @ runtime-core.esm-bundler.js:206
+emit @ runtime-core.esm-bundler.js:4404
+(匿名) @ runtime-core.esm-bundler.js:8253
+onDrop @ upload-dragger.vue:120
+(匿名) @ runtime-dom.esm-bundler.js:1782
+callWithErrorHandling @ runtime-core.esm-bundler.js:199
+callWithAsyncErrorHandling @ runtime-core.esm-bundler.js:206
+invoker @ runtime-dom.esm-bundler.js:730
+App.vue:267  Uncaught (in promise) TypeError: Cannot read properties of null (reading 'checkpoint')
+    at handleUpload (App.vue:267:57)
+    at callWithErrorHandling (runtime-core.esm-bundler.js:199:19)
+    at callWithAsyncErrorHandling (runtime-core.esm-bundler.js:206:17)
+    at emit (runtime-core.esm-bundler.js:4404:5)
+    at runtime-core.esm-bundler.js:8253:45
+    at Proxy.handleFileChange (ImageUpload.vue:66:3)
+    at use-handlers.ts:73:26
+handleUpload @ App.vue:267
+callWithErrorHandling @ runtime-core.esm-bundler.js:199
+callWithAsyncErrorHandling @ runtime-core.esm-bundler.js:206
+emit @ runtime-core.esm-bundler.js:4404
+(匿名) @ runtime-core.esm-bundler.js:8253
+handleFileChange @ ImageUpload.vue:66
+(匿名) @ use-handlers.ts:73
+Promise.then
+nextTick @ runtime-core.esm-bundler.js:289
+emitChange @ use-handlers.ts:73
+handleStart @ use-handlers.ts:128
+uploadFiles @ upload-content.vue:94
+callWithErrorHandling @ runtime-core.esm-bundler.js:199
+callWithAsyncErrorHandling @ runtime-core.esm-bundler.js:206
+emit @ runtime-core.esm-bundler.js:4404
+(匿名) @ runtime-core.esm-bundler.js:8253
+onDrop @ upload-dragger.vue:120
+(匿名) @ runtime-dom.esm-bundler.js:1782
+callWithErrorHandling @ runtime-core.esm-bundler.js:199
+callWithAsyncErrorHandling @ runtime-core.esm-bundler.js:206
+invoker @ runtime-dom.esm-bundler.js:730
