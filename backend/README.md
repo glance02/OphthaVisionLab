@@ -16,7 +16,10 @@ backend/
 ├── pretrain_weights/     # 预训练权重（需手动添加）
 │   └── VFM_Fundus_weights.pth
 ├── checkpoints/           # 训练权重（需手动添加）
-│   └── checkpoint_108_linear.pth
+│   ├── seg/
+│   │   └── checkpoint_108_linear.pth   # 分割模型
+│   └── single_cls/
+│       └── checkpoint_teacher_linear.pth  # 二分类模型
 └── requirements.txt        # Python 依赖
 ```
 
@@ -42,7 +45,13 @@ cp ../pretrain_weights/VFM_Fundus_weights.pth pretrain_weights/
 **分割模型权重**（必需）:
 ```bash
 # 从原项目根目录复制
-cp ../results/single_seg_debug/checkpoint_108_linear.pth checkpoints/
+cp ../results/single_seg_debug/checkpoint_108_linear.pth checkpoints/seg/
+```
+
+**二分类模型权重**（可选）:
+```bash
+# 从原项目根目录复制
+cp ../myProcessResults/single_cls_260106_Binary_finetune/checkpoint_teacher_linear.pth checkpoints/single_cls/
 ```
 
 如果文件不存在，启动时会显示警告但不报错。
@@ -129,7 +138,8 @@ curl -X POST "http://localhost:8000/api/segment" \
 
 A: 将以下文件复制到对应目录：
 - `VFM_Fundus_weights.pth` → `backend/pretrain_weights/`
-- `checkpoint_108_linear.pth` → `backend/checkpoints/`
+- `checkpoint_108_linear.pth` → `backend/checkpoints/seg/`
+- `checkpoint_teacher_linear.pth` → `backend/checkpoints/single_cls/`
 
 **Q: 推理速度很慢？**
 

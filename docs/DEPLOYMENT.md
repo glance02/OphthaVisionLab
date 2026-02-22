@@ -31,7 +31,8 @@ VisionFM 眼科图像分割系统已成功部署到本地环境，包括：
 
 1. **模型权重文件** (关键)
    - `backend/pretrain_weights/VFM_Fundus_weights.pth` - 预训练编码器权重
-   - `backend/checkpoints/checkpoint_108_linear.pth` - 分割头权重
+   - `backend/checkpoints/seg/checkpoint_108_linear.pth` - 分割头权重
+   - `backend/checkpoints/single_cls/checkpoint_teacher_linear.pth` - 二分类模型权重
 
    > 这些文件是模型运行所必需的，需要从原项目或其他位置复制到这些目录。
 
@@ -45,8 +46,10 @@ visonFM_/
 │   │   ├── __init__.py
 │   │   ├── vision_transformer.py
 │   │   └── unetr_head.py
-│   ├── pretrain_weights/   # ⚠️ 需要添加权重文件
-│   ├── checkpoints/        # ⚠️ 需要添加权重文件
+│   ├── pretrain_weights/   # ⚠️ 需要添加预训练权重文件
+│   ├── checkpoints/        # ⚠️ 需要添加任务权重文件
+│   │   ├── seg/           # 分割模型权重
+│   │   └── single_cls/    # 二分类模型权重
 │   ├── main.py             # FastAPI 主入口
 │   ├── model_service.py    # 模型服务
 │   ├── utils.py            # 工具函数
@@ -114,6 +117,7 @@ npm run dev
 从原项目或其他位置获取以下文件：
 - `VFM_Fundus_weights.pth` (预训练编码器)
 - `checkpoint_108_linear.pth` (分割头权重)
+- `checkpoint_teacher_linear.pth` (二分类模型权重，可选)
 
 ### 步骤 2: 放置到正确位置
 
@@ -122,7 +126,10 @@ npm run dev
 cp VFM_Fundus_weights.pth backend/pretrain_weights/
 
 # 复制分割头权重
-cp checkpoint_108_linear.pth backend/checkpoints/
+cp checkpoint_108_linear.pth backend/checkpoints/seg/
+
+# 复制二分类模型权重（可选）
+cp checkpoint_teacher_linear.pth backend/checkpoints/single_cls/
 ```
 
 ### 步骤 3: 重启后端服务
@@ -233,7 +240,8 @@ cp checkpoint_108_linear.pth backend/checkpoints/
 1. 确认权重文件存在
    ```bash
    ls backend/pretrain_weights/
-   ls backend/checkpoints/
+   ls backend/checkpoints/seg/
+   ls backend/checkpoints/single_cls/
    ```
 
 2. 检查文件大小是否正确

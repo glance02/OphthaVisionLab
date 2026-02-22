@@ -85,24 +85,37 @@ class SegmentationService:
         head = Unetr_Head(embed_dim=embed_dim, num_classes=1, img_dim=512)
 
         # 4. 加载分割头权重
-        checkpoint_path = Path(__file__).parent / "checkpoints" / "checkpoint_108_linear.pth"
+        checkpoint_path = Path(__file__).parent / "checkpoints" / "seg" / "checkpoint_108_linear.pth"
         if checkpoint_path.exists():
-            checkpoint = torch.load(str(checkpoint_path), map_location='cpu', weights_only=False)
+            # 兼容不同 PyTorch 版本
+            torch_version = tuple(map(int, torch.__version__.split('+')[0].split('.')[:2]))
+            if torch_version >= (1, 12):
+                checkpoint = torch.load(str(checkpoint_path), map_location='cpu', weights_only=False)
+            else:
+                checkpoint = torch.load(str(checkpoint_path), map_location='cpu')
 
             # 去掉 'module.' 前缀并提取 head 权重
             state_dict = checkpoint['state_dict']
             head_state = {}
             for k, v in state_dict.items():
                 new_key = k[7:] if k.startswith('module.') else k
-                if new_key.startswith('head.'):
-                    head_state[new_key[5:]] = v
+                # 只保留非 encoder 的权重（即 head 的权重）
+                if not new_key.startswith('encoder.'):
+                    head_state[new_key] = v
 
-            head.load_state_dict(head_state, strict=False)
-            best_dice = checkpoint.get('best_dice', 'N/A')
-            print(f"✓ 分割头权重加载成功 (Dice: {best_dice})")
+            if head_state:
+                missing, unexpected = head.load_state_dict(head_state, strict=False)
+                best_dice = checkpoint.get('best_dice', 'N/A')
+                print(f"✓ 分割头权重加载成功 (Dice: {best_dice})")
+                if missing:
+                    print(f"  缺失参数: {missing}")
+                if unexpected:
+                    print(f"  未匹配参数: {unexpected}")
+            else:
+                print("⚠ 警告: 未能从 checkpoint 中提取任何 head 权重!")
         else:
             print(f"⚠ checkpoint 文件不存在: {checkpoint_path}")
-            print("  请将 checkpoint_108_linear.pth 放在 backend/checkpoints/ 目录下")
+            print("  请将 checkpoint_108_linear.pth 放在 backend/checkpoints/seg/ 目录下")
 
         # 5. 组合模型
         self.model = SegModel(encoder, head).to(self.device).eval()

@@ -115,7 +115,9 @@ VisionFM/
 │   ├── utils.py                      # 后端工具函数
 │   ├── requirements.txt              # 后端依赖
 │   ├── pretrain_weights/             # 预训练权重目录
-│   └── checkpoints/                  # 任务权重目录
+│   ├── checkpoints/                  # 任务权重目录
+│   │   ├── seg/                     # 分割模型权重
+│   │   └── single_cls/              # 二分类模型权重
 │
 ├── 📁 frontend/                      # Web 前端 (Vue 3)
 │   ├── src/
@@ -245,7 +247,7 @@ npm run dev
 ```bash
 # 分割推理
 python tools/seg_pth_use.py \
-    --checkpoint results/single_seg_debug/checkpoint_108_linear.pth \
+    --checkpoint checkpoints/seg/checkpoint_108_linear.pth \
     --pretrained-weights pretrain_weights/VFM_Fundus_weights.pth \
     --image path/to/image.jpg \
     --output seg_result.png
@@ -356,8 +358,9 @@ CHECKPOINT_DIR = 'results/'
    - 下载链接: [Google Drive](https://drive.google.com/file/d/13uWm0a02dCWyARUcrCdHZIcEgRfBmVA4/view)
 
 2. **任务权重** (训练或获取):
-   - 分割: `backend/checkpoints/checkpoint_108_linear.pth`
-   - 分类: 根据具体任务训练
+   - 分割: `backend/checkpoints/seg/checkpoint_108_linear.pth`
+   - 二分类: `backend/checkpoints/single_cls/checkpoint_teacher_linear.pth`
+   - 多分类: 根据具体任务训练
 
 ---
 
@@ -420,7 +423,8 @@ cat frontend/.env
 ```bash
 # 检查权重文件存在性
 ls -lh backend/pretrain_weights/
-ls -lh backend/checkpoints/
+ls -lh backend/checkpoints/seg/
+ls -lh backend/checkpoints/single_cls/
 ```
 
 ---

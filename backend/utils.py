@@ -46,7 +46,12 @@ def get_stats(modality):
 
 def load_pretrained_weights(model, pretrained_weights, checkpoint_key, model_name, patch_size):
     if os.path.isfile(pretrained_weights):
-        state_dict = torch.load(pretrained_weights, map_location="cpu", weights_only=False)
+        # 兼容不同 PyTorch 版本
+        torch_version = tuple(map(int, torch.__version__.split('+')[0].split('.')[:2]))
+        if torch_version >= (1, 12):
+            state_dict = torch.load(pretrained_weights, map_location="cpu", weights_only=False)
+        else:
+            state_dict = torch.load(pretrained_weights, map_location="cpu")
         if checkpoint_key is not None and checkpoint_key in state_dict:
             print(f"Take key {checkpoint_key} in provided checkpoint dict")
             state_dict = state_dict[checkpoint_key]

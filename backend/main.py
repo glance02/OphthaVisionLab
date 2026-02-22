@@ -82,7 +82,7 @@ async def health():
 @app.post("/api/segment")
 async def segment_image(
     file: UploadFile = File(..., description="图像文件（JPG/PNG）"),
-    checkpoint: str = Form("checkpoints/checkpoint_108_linear.pth", description="分割模型checkpoint路径"),
+    checkpoint: str = Form("checkpoints/seg/checkpoint_108_linear.pth", description="分割模型checkpoint路径"),
     threshold: float = Form(0.5, description="分割阈值（0-1）"),
     input_size: int = Form(512, description="输入图像尺寸")
 ):
@@ -272,7 +272,7 @@ async def model_info():
                 "description": "眼底血管分割",
                 "inputSize": [512, 512],
                 "outputSize": [512, 512],
-                "checkpoint": "checkpoints/checkpoint_108_linear.pth",
+                "checkpoint": "checkpoints/seg/checkpoint_108_linear.pth",
                 "pretrainedWeights": "pretrain_weights/VFM_Fundus_weights.pth"
             },
             "binary_classification": {

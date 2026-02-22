@@ -119,7 +119,12 @@ class ModelFactory:
 
         # 加载 checkpoint
         if checkpoint_path and Path(checkpoint_path).exists():
-            checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+            # 兼容不同 PyTorch 版本
+            torch_version = tuple(map(int, torch.__version__.split('+')[0].split('.')[:2]))
+            if torch_version >= (1, 12):
+                checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+            else:
+                checkpoint = torch.load(checkpoint_path, map_location='cpu')
             state_dict = checkpoint['state_dict']
 
             # 去掉 'module.' 前缀并提取 head 权重
@@ -166,7 +171,12 @@ class ModelFactory:
 
         # 加载 checkpoint
         if checkpoint_path and Path(checkpoint_path).exists():
-            checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+            # 兼容不同 PyTorch 版本
+            torch_version = tuple(map(int, torch.__version__.split('+')[0].split('.')[:2]))
+            if torch_version >= (1, 12):
+                checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+            else:
+                checkpoint = torch.load(checkpoint_path, map_location='cpu')
 
             # 加载分类头权重
             if "state_dict" in checkpoint:
@@ -204,7 +214,12 @@ class ModelFactory:
 
         # 加载 checkpoint
         if checkpoint_path and Path(checkpoint_path).exists():
-            checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+            # 兼容不同 PyTorch 版本
+            torch_version = tuple(map(int, torch.__version__.split('+')[0].split('.')[:2]))
+            if torch_version >= (1, 12):
+                checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+            else:
+                checkpoint = torch.load(checkpoint_path, map_location='cpu')
 
             # 加载分类器权重
             if "classifier_state_dict" in checkpoint:
