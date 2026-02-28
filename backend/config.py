@@ -3,6 +3,13 @@
 import os
 from typing import Optional
 
+from dotenv import load_dotenv
+
+# 自动加载 .env 文件（先尝试当前目录，再尝试父目录）
+load_dotenv()                         # backend/.env (如果存在)
+load_dotenv(dotenv_path='../.env')     # 项目根目录 .env
+
+
 class Config:
     """应用配置管理"""
 
@@ -30,8 +37,8 @@ class Config:
 
     # === AI 分析配置 ===
     AI_ANALYSIS_ENABLED: bool = True
-    AI_MODEL_TEMPERATURE: float = 0.7
-    AI_MAX_TOKENS: int = 2048
+    AI_MODEL_TEMPERATURE: float = float(os.getenv('AI_MODEL_TEMPERATURE', '0.7'))
+    AI_MAX_TOKENS: int = int(os.getenv('AI_MAX_TOKENS', '2048'))
 
     # === 安全配置 ===
     MAX_FILE_SIZE_MB: int = 10  # 最大上传文件大小（MB）

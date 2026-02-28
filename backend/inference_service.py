@@ -127,6 +127,7 @@ class InferenceService:
 
         return {
             'mask': mask_bytes.getvalue(),
+            'probability_map': prob_np,
             'shape': (input_size, input_size),
             'threshold': threshold
         }

@@ -11,11 +11,12 @@ from pathlib import Path
 from typing import Optional
 
 from inference_service import inference_service
+from routers.ai_analysis import router as ai_router
 
 app = FastAPI(
     title="VisionFM Multi-Task API",
-    description="眼科人工智能多任务服务 - 支持分类、分割等",
-    version="2.0.0"
+    description="眼科人工智能多任务服务 - 支持分类、分割、AI 智能分析",
+    version="2.1.0"
 )
 
 # CORS 配置
@@ -28,6 +29,9 @@ app.add_middleware(
 )
 
 
+# 注册 AI 分析路由
+app.include_router(ai_router)
+
 # ============================================================================
 # 基础接口
 # ============================================================================
@@ -37,18 +41,21 @@ async def root():
     """根路径 - API 信息"""
     return {
         "name": "VisionFM Multi-Task API",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "description": "眼科人工智能通用基础模型服务",
         "tasks": {
             "segmentation": "眼底血管分割",
             "binary_classification": "二分类（如糖尿病视网膜病变检测）",
-            "multiclass_classification": "多分类（如疾病分级）"
+            "multiclass_classification": "多分类（如疾病分级）",
+            "ai_analysis": "AI 智能分析（VisionFM + 多模态大模型）"
         },
         "endpoints": {
             "health": "/health",
             "segmentation": "/api/segment",
             "binary_classify": "/api/classify/binary",
             "multiclass_classify": "/api/classify/multiclass",
+            "ai_analyze": "/api/ai/analyze",
+            "ai_status": "/api/ai/status",
             "docs": "/docs"
         }
     }
@@ -321,6 +328,18 @@ async def list_tasks():
                 "method": "POST",
                 "required_params": ["file", "checkpoint", "num_labels"],
                 "optional_params": ["input_size", "n_last_blocks", "avgpool"]
+            },
+            {
+                "id": "ai_analysis",
+                "name": "AI 智能分析",
+                "endpoint": "/api/ai/analyze",
+                "method": "POST",
+                "required_params": ["file"],
+                "optional_params": [
+                    "run_segmentation", "run_classification",
+                    "seg_checkpoint", "cls_checkpoint",
+                    "seg_threshold", "temperature"
+                ]
             }
         ]
     }
@@ -331,12 +350,15 @@ async def list_tasks():
 # ============================================================================
 
 if __name__ == "__main__":
+    from config import config as app_config
+    app_config.print_config()
+
     print("=" * 60)
-    print("     VisionFM 多任务 API 服务")
+    print("     VisionFM 多任务 API 服务 v2.1")
     print("=" * 60)
     print(f"     服务地址: http://0.0.0.0:8000")
     print(f"     API 文档: http://0.0.0.0:8000/docs")
-    print(f"     支持任务: 分割、二分类、多分类")
+    print(f"     支持任务: 分割、二分类、多分类、AI 智能分析")
     print("=" * 60)
     print()
 
