@@ -2,8 +2,8 @@
 
 > 方案类型：API 调用多模态大模型
 > 创建日期：2025-01-10
-> 更新日期：2026-02-24
-> 状态：待实施
+> 更新日期：2026-03-02
+> 状态：后端已完成，前端待开发
 
 ---
 
@@ -142,16 +142,15 @@
 |------|------|----------|
 | qwen-vl-max | 通义千问视觉版旗舰模型，中文医学理解最强 | 首选 |
 | qwen-vl-plus | 视觉版增强模型，性价比高 | 高并发场景 |
-| qwen-vl-chat | 基础视觉对话模型，成本最低 | 测试/开发阶段 |
+| qwen-vl-chat-v1 | 基础视觉对话模型，成本最低 | 默认使用 |
+| qwen-vl-chat | 兼容旧版本 | 兼容 |
 
 ### SDK 选择
 
 ```bash
-# 方案1: 阿里云 dashscope SDK（推荐）
-pip install dashscope
+# 阿里云 dashscope SDK（推荐）
+pip install dashscope python-dotenv
 
-# 方案2: OpenAI 兼容模式
-pip install openai
 ```
 
 ---
@@ -162,33 +161,44 @@ pip install openai
 
 #### 任务清单
 
-- [ ] 注册阿里云账号并开通百炼服务
-- [ ] 获取 API Key
-- [ ] 充值测试金额（建议充值 10-20 元用于测试）
-- [ ] 安装 Python SDK：`pip install dashscope`
-- [ ] 验证 API 连通性（参考下方的测试脚本）
+- [x] 注册阿里云账号并开通百炼服务
+- [x] 获取 API Key
+- [x] 充值测试金额（建议充值 10-20 元用于测试）
+- [x] 安装 Python SDK：`pip install dashscope`
+- [x] 验证 API 连通性（参考下方的测试脚本）
 
-### 第二阶段：后端开发（1.5天）
+### 第二阶段：后端开发（已完成）
 
 #### 任务清单
 
-- [ ] 创建 `backend/services/bailian_client.py` - 百炼 API 客户端
-- [ ] 创建 `backend/services/analysis_service.py` - 分析整合服务
-- [ ] 修改 `backend/inference_service.py` - 提取结构化特征
-- [ ] 新增 API 端点 `POST /api/ai/analyze`
-- [ ] 实现图片 Base64 编码和大小优化
-- [ ] 设计 Prompt 模板
+- [x] 创建 `backend/config.py` - 配置管理（含 API Key）
+- [x] 创建 `backend/services/bailian_client.py` - 百炼 API 客户端
+- [x] 创建 `backend/services/analysis_service.py` - 分析整合服务
+- [x] 创建 `backend/routers/ai_analysis.py` - AI分析路由
+- [x] 修改 `backend/main.py` - 集成 AI 路由（版本升级至 2.1.0）
+- [x] 实现图片 Base64 编码和大小优化
+- [x] 设计 Prompt 模板
+- [x] 实现内存缓存机制
 
-### 第三阶段：前端开发（1天）
+#### 已实现功能
+
+| 文件 | 功能说明 |
+|------|----------|
+| `config.py` | DASHSCOPE_API_KEY、DASHSCOPE_MODEL 等配置 |
+| `bailian_client.py` | 百炼 MultiModalConversation API 封装，支持多图输入 |
+| `analysis_service.py` | 分析整合服务，包含特征提取、图像处理、Prompt构建、缓存管理 |
+| `ai_analysis.py` | API 路由：`/api/ai/analyze`、`/api/ai/status`、`/api/ai/test-connection` |
+
+### 第三阶段：前端开发（待开发）
 
 #### 任务清单
 
 - [ ] 创建 `frontend/src/components/AIAnalysisPanel.vue` - AI分析结果面板
-- [ ] 修改 `frontend/src/components/ResultDisplay.vue` - 添加分析按钮
+- [ ] 修改前端组件添加分析按钮
 - [ ] 添加 API 调用服务
 - [ ] 实现分析结果展示（Markdown 渲染）
 
-### 第四阶段：测试优化（1天）
+### 第四阶段：测试优化
 
 #### 任务清单
 
@@ -196,7 +206,6 @@ pip install openai
 - [ ] 调试 Prompt 优化输出质量
 - [ ] 调整图片大小（平衡质量和成本）
 - [ ] 记录调用成本和响应时间
-- [ ] 添加缓存机制（相同图像不重复调用）
 
 ---
 
@@ -275,39 +284,63 @@ pip install openai
 {
   "success": true,
   "data": {
-    "patient_id": "P001",
-    "image_id": "IMG_20250110_001",
-    "timestamp": "2025-01-10T10:30:00",
-    
     "model_results": {
       "classification": {
         "probability": 0.87,
-        "class": "疾病"
+        "predicted_class": 1,
+        "class_label": "疾病",
+        "confidence": 0.95
       },
       "segmentation": {
         "vessel_area_ratio": 0.15,
         "vessel_density": 0.42,
-        "tortuosity_index": 1.23
+        "tortuosity_index": 1.23,
+        "vessel_pixels": 38000,
+        "total_pixels": 262144
+      },
+      "model_info": {
+        "name": "VisionFM",
+        "modality": "Fundus",
+        "encoder": "ViT-Base"
       }
     },
-    
+
     "ai_analysis": {
-      "findings": "视网膜血管密度异常增高...",
-      "abnormalities": "血管弯曲度超出正常范围...",
-      "risk_level": "高风险",
-      "recommendation": "建议立即进行进一步眼科检查",
-      "full_response": "完整的AI分析文本..."
+      "content": "完整的AI分析文本（Markdown格式）...",
+      "model_used": "qwen-vl-chat-v1"
     },
-    
+
     "metadata": {
-      "model_used": "qwen-vl-max",
+      "image_hash": "a1b2c3d4...",
+      "timestamp": "2026-03-02T10:30:00",
       "tokens_used": 2048,
-      "cost_cny": 0.015,
-      "response_time_ms": 2500
-    }
+      "input_tokens": 1500,
+      "output_tokens": 548,
+      "api_response_time_ms": 2500,
+      "total_time_ms": 3200
+    },
+
+    "images": {
+      "original": "data:image/jpeg;base64,...",
+      "mask": "data:image/png;base64,..."
+    },
+
+    "from_cache": false
   }
 }
 ```
+
+**响应字段说明：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `model_results` | object | VisionFM 本地模型的结构化检测数据 |
+| `model_results.classification` | object | 分类结果（概率、类别、置信度） |
+| `model_results.segmentation` | object | 分割特征（血管面积比、密度、弯曲度） |
+| `ai_analysis.content` | string | AI 生成的分析文本（Markdown格式） |
+| `metadata` | object | 调用元信息（tokens、耗时、缓存状态） |
+| `images` | object | 原始图像和分割掩码（base64，供前端展示） |
+| `from_cache` | bool | 是否命中缓存 |
 
 ---
 
@@ -319,143 +352,156 @@ pip install openai
 VisionFM/
 │
 ├── backend/                      # 后端服务
+│   ├── config.py                 # 配置管理（含 DASHSCOPE_API_KEY）
 │   ├── services/
 │   │   ├── __init__.py
-│   │   ├── bailian_client.py     # 阿里云百炼 API 客户端
-│   │   └── analysis_service.py   # 分析整合服务
+│   │   ├── bailian_client.py     # 阿里云百炼 API 客户端 ✅ 已完成
+│   │   └── analysis_service.py   # 分析整合服务 ✅ 已完成
 │   ├── routers/
 │   │   ├── __init__.py
-│   │   └── ai_analysis.py        # AI分析路由
-│   └── config.py                 # 配置管理（含 API Key）
+│   │   └── ai_analysis.py        # AI分析路由 ✅ 已完成
+│   ├── inference_service.py      # 现有：模型推理服务
+│   └── main.py                   # 已集成 AI 路由
 │
 ├── frontend/                     # 前端应用
 │   └── src/
 │       ├── components/
-│       │   └── AIAnalysisPanel.vue   # AI分析结果面板
+│       │   └── AIAnalysisPanel.vue   # AI分析结果面板 ⏳ 待开发
 │       └── services/
-│           └── aiAnalysis.js     # AI分析 API 调用
+│           └── aiAnalysis.js     # AI分析 API 调用 ⏳ 待开发
 │
 └── docs/
     └── plan/
         └── ai_analysis_plan.md   # 本文档
 ```
 
+### 配置文件
+
+在项目根目录或 `backend/` 目录下创建 `.env` 文件：
+
+```bash
+# 阿里云百炼配置
+DASHSCOPE_API_KEY=your-api-key-here
+DASHSCOPE_MODEL=qwen-vl-chat-v1  # 可选，默认 qwen-vl-chat-v1
+
+# 可选配置
+AI_MODEL_TEMPERATURE=0.7
+AI_MAX_TOKENS=2048
+```
+
 ### 关键代码示例
 
-#### 1. 百炼 API 客户端 (backend/services/bailian_client.py)
+#### 1. 配置文件 (backend/config.py)
 
 ```python
-import dashscope
-from dashscope import MultiModalConversation
+import os
+from dotenv import load_dotenv
 
+load_dotenv()  # 加载 .env 文件
+
+class Config:
+    DASHSCOPE_API_KEY: str = os.getenv('DASHSCOPE_API_KEY')
+    DASHSCOPE_MODEL: str = os.getenv('DASHSCOPE_MODEL', 'qwen-vl-chat-v1')
+    AI_ANALYSIS_ENABLED: bool = True
+    MAX_FILE_SIZE_MB: int = 10
+
+config = Config()
+```
+
+#### 2. 百炼 API 客户端 (backend/services/bailian_client.py) - 已实现
+
+核心功能：
+- 支持同时输入原图和分割叠加图
+- 自动提取 token 使用量
+- 返回响应时间统计
+
+```python
 class BaiLianClient:
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, model: str = "qwen-vl-max"):
         dashscope.api_key = api_key
-        self.model = "qwen-vl-max"  # 或 qwen-vl-plus
-    
+        self.model = model
+
     def analyze_fundus_image(
         self,
         image_base64: str,
         prompt: str,
-        temperature: float = 0.7
+        overlay_base64: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
     ) -> dict:
-        """
-        分析眼底图像
-        
-        Args:
-            image_base64: Base64 编码的图像
-            prompt: 分析提示词
-            temperature: 创意度（0-1）
-        
-        Returns:
-            AI 分析结果
-        """
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"image": f"data:image/jpeg;base64,{image_base64}"},
-                    {"text": prompt}
-                ]
-            }
-        ]
-        
-        response = MultiModalConversation.call(
-            model=self.model,
-            messages=messages,
-            temperature=temperature
-        )
-        
+        # 构建多图输入 messages
+        content = [{"image": f"data:image/jpeg;base64,{image_base64}"}]
+        if overlay_base64:
+            content.append({"image": f"data:image/png;base64,{overlay_base64}"})
+        content.append({"text": prompt})
+
+        messages = [{"role": "user", "content": content}]
+        response = MultiModalConversation.call(...)
+
         return {
-            "content": response.output.choices[0].message.content,
-            "tokens": response.usage.total_tokens,
-            "model": self.model
+            "content": ai_text,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+            "model": self.model,
+            "response_time_ms": elapsed_ms,
         }
 ```
 
-#### 2. 分析服务 (backend/services/analysis_service.py)
+#### 3. 分析服务 (backend/services/analysis_service.py) - 已实现
+
+核心功能：
+- 从分割掩码计算形态学特征（血管面积比、密度、弯曲度）
+- 图像压缩和叠加图生成
+- 简易内存缓存（MD5 哈希）
+- Prompt 模板自动构建
 
 ```python
-from .bailian_client import BaiLianClient
-from ..inference_service import SegmentationService, ClassificationService
-
-class AIService:
-    def __init__(
+class AnalysisService:
+    async def analyze_image(
         self,
-        bailian_client: BaiLianClient,
-        seg_service: SegmentationService,
-        cls_service: ClassificationService
-    ):
-        self.bailian = bailian_client
-        self.seg = seg_service
-        self.cls = cls_service
-    
-    async def analyze_image(self, image_bytes: bytes) -> dict:
-        # 1. 执行 VisionFM 本地推理
-        seg_result = self.seg.predict(image_bytes)
-        cls_result = self.cls.predict(image_bytes)
-        
-        # 2. 提取特征指标
-        features = self._extract_features(seg_result, cls_result)
-        
-        # 3. 生成叠加图
-        overlay_image = self._create_overlay(image_bytes, seg_result)
-        
-        # 4. 准备 Prompt
-        prompt = self._build_prompt(features)
-        
-        # 5. 调用百炼 API
-        analysis = self.bailian.analyze_fundus_image(
-            image_base64=overlay_image,
-            prompt=prompt
-        )
-        
-        return {
-            "model_results": features,
-            "ai_analysis": analysis
-        }
+        image_bytes: bytes,
+        seg_result: Optional[dict] = None,
+        cls_result: Optional[dict] = None,
+        temperature: float = 0.7,
+        use_cache: bool = True,
+    ) -> dict:
+        # 1. 缓存检查（MD5 哈希）
+        # 2. 提取结构化特征
+        # 3. 图片压缩 + Base64 编码
+        # 4. 生成叠加图
+        # 5. 构建 Prompt
+        # 6. 调用百炼 API
+        # 7. 返回结果（含 metadata）
 ```
 
-#### 3. API 端点 (backend/routers/ai_analysis.py)
+#### 4. API 端点 (backend/routers/ai_analysis.py) - 已实现
 
 ```python
-from fastapi import APIRouter, UploadFile, File, Depends
-from ..services.analysis_service import AIService
-
 router = APIRouter(prefix="/api/ai", tags=["AI Analysis"])
 
 @router.post("/analyze")
 async def analyze_image(
     file: UploadFile = File(...),
-    ai_service: AIService = Depends(get_ai_service)
+    run_segmentation: bool = Form(True),
+    run_classification: bool = Form(True),
+    seg_checkpoint: str = Form("checkpoints/seg/checkpoint_108_linear.pth"),
+    cls_checkpoint: str = Form("checkpoints/single_cls/checkpoint_teacher_linear.pth"),
+    temperature: float = Form(0.7),
 ):
-    """
-    上传眼底图像，获取 AI 分析报告
-    """
-    image_bytes = await file.read()
-    result = await ai_service.analyze_image(image_bytes)
-    return {"success": True, "data": result}
+    # 1. VisionFM 本地推理（分割 + 分类）
+    # 2. 调用分析服务
+    # 3. 返回结果 + 原图/掩码 base64
 ```
+
+**已实现的 API 端点：**
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/ai/analyze` | POST | AI 智能分析主接口 |
+| `/api/ai/status` | GET | 检查服务状态 |
+| `/api/ai/test-connection` | POST | 测试 API 连通性 |
+| `/api/ai/clear-cache` | POST | 清空分析缓存 |
 
 ---
 
@@ -565,45 +611,42 @@ async def analyze_image(
 
 ## 附录：API 测试脚本
 
-```python
-# test_bailian.py
-import dashscope
-from dashscope import MultiModalConversation
+项目根目录已提供测试脚本 `test_bailian.py`：
 
-def test_bailian_api():
-    # 设置 API Key
-    dashscope.api_key = "your-api-key-here"
-    
-    # 准备测试消息
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"image": "https://example.com/test_fundus.jpg"},
-                {"text": "这是一张眼底照片，请描述你看到了什么？"}
-            ]
-        }
-    ]
-    
-    # 调用 API
-    response = MultiModalConversation.call(
-        model="qwen-vl-max",
-        messages=messages
-    )
-    
-    if response.status_code == 200:
-        print("API 调用成功！")
-        print(f"回复内容：{response.output.choices[0].message.content}")
-        print(f"Token 使用量：{response.usage.total_tokens}")
-    else:
-        print(f"API 调用失败：{response.message}")
+```bash
+# 运行测试
+python test_bailian.py
 
-if __name__ == "__main__":
-    test_bailian_api()
+# 或设置环境变量后运行
+export DASHSCOPE_API_KEY=your-api-key-here
+python test_bailian.py
+```
+
+测试脚本会：
+1. 检查 API Key 是否配置
+2. 发送简单的文本请求测试连通性
+3. 估算 Token 使用量和成本
+
+**API 端点测试：**
+
+后端服务启动后，可使用以下方式测试：
+
+```bash
+# 测试服务状态
+curl http://localhost:8000/api/ai/status
+
+# 测试 API 连通性
+curl -X POST http://localhost:8000/api/ai/test-connection
+
+# 完整分析（需要图片）
+curl -X POST http://localhost:8000/api/ai/analyze \
+  -F "file=@test_fundus.jpg" \
+  -F "run_segmentation=true" \
+  -F "run_classification=true"
 ```
 
 ---
 
-*文档版本：v2.0*  
-*最后更新：2026-02-24*  
-*更新说明：将 API 提供商从 SiliconFlow 更换为阿里云百炼*
+*文档版本：v2.1*
+*最后更新：2026-03-02*
+*更新说明：后端实现已完成，标记为"后端已完成，前端待开发"状态*

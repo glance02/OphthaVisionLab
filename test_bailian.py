@@ -35,7 +35,7 @@ def test_bailian_api():
             {
                 "role": "user",
                 "content": [
-                    {"text": "你好，请简单介绍一下你自己。"}
+                    {"text": "你好，请简单介绍一下你自己，你现在使用的是什么模型。"}
                 ]
             }
         ]

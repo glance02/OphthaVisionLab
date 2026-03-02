@@ -60,9 +60,12 @@ class BaiLianClient:
         # 构建 content 列表：包含图片和文本
         content = []
 
-        # 添加原始图像
+        # 添加原始图像（根据输入判断格式，默认尝试 jpeg）
+        image_format = "jpeg"
+        # 检查 base64 开头是否可以推断格式（如果有额外参数的话）
+        # 默认使用 jpeg，因为大多数眼底图像是 jpeg 格式
         content.append({
-            "image": f"data:image/jpeg;base64,{image_base64}"
+            "image": f"data:image/{image_format};base64,{image_base64}"
         })
 
         # 如果有分割叠加图，也添加进去
@@ -142,16 +145,19 @@ class BaiLianClient:
             messages = [
                 {
                     "role": "user",
-                    "content": [{"text": "请回复OK以确认连接正常。"}],
+                    "content": [{"text": "你好，请简单介绍一下你自己。"}],
                 }
             ]
             response = MultiModalConversation.call(
                 model=self.model,
                 messages=messages,
-                temperature=0.1,
-                max_tokens=10,
+                temperature=0.7,
             )
+            logger.info(f"API 响应状态: {response.status_code}")
+            logger.info(f"API 响应内容: {response}")
             return response.status_code == 200
         except Exception as e:
+            import traceback
             logger.error(f"百炼连通性测试失败: {e}")
+            logger.error(f"详细错误: {traceback.format_exc()}")
             return False

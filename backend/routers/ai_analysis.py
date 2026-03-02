@@ -85,10 +85,31 @@ async def analyze_image(
     - metadata: 调用元信息（tokens、耗时等）
     """
     # --- 验证文件 ---
-    if not file.content_type or not file.content_type.startswith('image/'):
-        raise HTTPException(status_code=400, detail="仅支持图片文件")
-
+    # 先读取文件内容
     content = await file.read()
+
+    # 检查文件头识别图片类型（支持扩展名与实际内容不符的情况）
+    if len(content) < 12:
+        raise HTTPException(status_code=400, detail="文件过小，不是有效的图片")
+
+    # 常见图片格式魔数
+    image_magic = {
+        b'\xff\xd8\xff': 'image/jpeg',      # JPEG
+        b'\x89PNG\r\n\x1a\n': 'image/png',   # PNG
+        b'GIF87a': 'image/gif',             # GIF87a
+        b'GIF89a': 'image/gif',             # GIF89a
+        b'RIFF': 'image/webp',              # WebP (需要进一步检查)
+        b'BM': 'image/bmp',                 # BMP
+    }
+
+    detected_type = None
+    for magic, img_type in image_magic.items():
+        if content.startswith(magic):
+            detected_type = img_type
+            break
+
+    if not detected_type:
+        raise HTTPException(status_code=400, detail="仅支持图片文件（JPEG/PNG/GIF/BMP/WebP）")
     max_size = config.MAX_FILE_SIZE_MB * 1024 * 1024
     if len(content) > max_size:
         raise HTTPException(
@@ -146,7 +167,7 @@ async def analyze_image(
     # 附加原图和掩码的 base64（供前端展示）
     original_b64 = base64.b64encode(content).decode('utf-8')
     response_data["data"]["images"] = {
-        "original": f"data:{file.content_type};base64,{original_b64}",
+        "original": f"data:{detected_type};base64,{original_b64}",
     }
     if seg_result and 'mask' in seg_result:
         mask_b64 = base64.b64encode(seg_result['mask']).decode('utf-8')
