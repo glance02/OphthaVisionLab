@@ -35,14 +35,14 @@ def test_bailian_api():
             {
                 "role": "user",
                 "content": [
-                    {"text": "你好，请简单介绍一下你自己，你现在使用的是什么模型。"}
+                    {"text": "，你现在使用的是阿里云的什么模型？你能分析图片吗？"}
                 ]
             }
         ]
 
         # 调用 API
         response = MultiModalConversation.call(
-            model="qwen-vl-chat-v1",  # 使用基础模型测试，成本最低
+            model=os.getenv('DASHSCOPE_MODEL'),
             messages=messages,
             temperature=0.7
         )
