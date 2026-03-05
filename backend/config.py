@@ -24,12 +24,10 @@ class Config:
     PRETRAIN_WEIGHTS_DIR: str = "pretrain_weights"
     CHECKPOINTS_DIR: str = "checkpoints"
 
-    # 模型文件映射
+    # 模型文件映射（仅保留实际存在的）
     MODEL_WEIGHTS = {
         'Fundus': 'VFM_Fundus_weights.pth',
         'OCT': 'VFM_OCT_weights.pth',
-        'FFA': 'VFM_FFA_weights.pth',
-        'External': 'VFM_External_weights.pth',
     }
 
     # === Web 服务配置 ===

@@ -13,6 +13,10 @@
         <el-icon><Grid /></el-icon>
         <span>多分类</span>
       </el-radio-button>
+      <el-radio-button value="ai_analysis">
+        <el-icon><MagicStick /></el-icon>
+        <span>AI 分析</span>
+      </el-radio-button>
     </el-radio-group>
 
     <!-- 任务说明 -->
@@ -87,6 +91,48 @@
             </el-select>
           </el-form-item>
         </div>
+
+        <!-- AI 分析设置 -->
+        <div v-if="selectedTask === 'ai_analysis'" class="setting-group">
+          <el-form-item label="运行分割模型">
+            <el-switch v-model="settings.ai_analysis.run_segmentation" />
+          </el-form-item>
+          <el-form-item label="运行分类模型">
+            <el-switch v-model="settings.ai_analysis.run_classification" />
+          </el-form-item>
+          <el-form-item label="分割 Checkpoint">
+            <el-input
+              v-model="settings.ai_analysis.seg_checkpoint"
+              placeholder="checkpoints/seg/checkpoint_108_linear.pth"
+            />
+          </el-form-item>
+          <el-form-item label="分类 Checkpoint">
+            <el-input
+              v-model="settings.ai_analysis.cls_checkpoint"
+              placeholder="checkpoints/single_cls/checkpoint_teacher_linear.pth"
+            />
+          </el-form-item>
+          <el-form-item label="分割阈值">
+            <el-slider
+              v-model="settings.ai_analysis.seg_threshold"
+              :min="0"
+              :max="1"
+              :step="0.01"
+              :show-tooltip="true"
+            />
+            <span class="value-display">{{ (settings.ai_analysis.seg_threshold * 100).toFixed(0) }}%</span>
+          </el-form-item>
+          <el-form-item label="AI 创意度">
+            <el-slider
+              v-model="settings.ai_analysis.temperature"
+              :min="0"
+              :max="1"
+              :step="0.1"
+              :show-tooltip="true"
+            />
+            <span class="value-display">{{ settings.ai_analysis.temperature }}</span>
+          </el-form-item>
+        </div>
       </el-collapse-item>
     </el-collapse>
   </div>
@@ -94,7 +140,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { Scissor, Monitor, Grid } from '@element-plus/icons-vue'
+import { Scissor, Monitor, Grid, MagicStick } from '@element-plus/icons-vue'
 
 const emit = defineEmits<{
   taskChange: [task: string, settings: any]
@@ -126,6 +172,14 @@ const settings = reactive({
     input_size: 224,
     n_last_blocks: 4,
     avgpool: 0
+  },
+  ai_analysis: {
+    run_segmentation: true,
+    run_classification: true,
+    seg_checkpoint: 'checkpoints/seg/checkpoint_108_linear.pth',
+    cls_checkpoint: 'checkpoints/single_cls/checkpoint_teacher_linear.pth',
+    seg_threshold: 0.5,
+    temperature: 0.7
   }
 })
 
@@ -141,6 +195,10 @@ const taskConfig = {
   multiclass: {
     title: '多分类',
     description: '将图像分为多个类别，如：疾病分级（无/轻度/中度/重度）。适用于细粒度疾病分类任务。'
+  },
+  ai_analysis: {
+    title: 'AI 智能分析',
+    description: '整合 VisionFM 本地模型 + 阿里云百炼多模态大模型，生成综合分析报告。自动进行分割和分类，并提供专业的医学影像分析。'
   }
 }
 
