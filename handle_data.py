@@ -56,7 +56,7 @@ def process_fundus_classification():
     """
     处理FundusClassification/IDRiD/目录下的标签文件（原地修改）
     """
-    base_dir = "./dataset/single_cls_random/FundusClassification/dataset_A"
+    base_dir = "dataset/SingleModalCls/FundusClassification/IDRiD"
 
     # 处理训练集标签文件
     train_input = os.path.join(base_dir, "training_labels.txt")
@@ -73,7 +73,7 @@ def verify_conversion():
     """
     验证转换结果
     """
-    base_dir = "./dataset/single_cls_random/FundusClassification/dataset_A"
+    base_dir = "dataset/SingleModalCls/FundusClassification/IDRiD"
 
     # 检查训练集
     train_file = os.path.join(base_dir, "training_labels.txt")

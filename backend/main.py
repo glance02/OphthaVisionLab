@@ -45,6 +45,7 @@ async def root():
         "description": "眼科人工智能通用基础模型服务",
         "tasks": {
             "segmentation": "眼底血管分割",
+            "idrid_ma": "IDRiD微动脉瘤分割",
             "binary_classification": "二分类（如糖尿病视网膜病变检测）",
             "multiclass_classification": "多分类（如疾病分级）",
             "ai_analysis": "AI 智能分析（VisionFM + 多模态大模型）"
@@ -52,6 +53,7 @@ async def root():
         "endpoints": {
             "health": "/health",
             "segmentation": "/api/segment",
+            "idrid_ma": "/api/idrid/ma",
             "binary_classify": "/api/classify/binary",
             "multiclass_classify": "/api/classify/multiclass",
             "ai_analyze": "/api/ai/analyze",
@@ -80,6 +82,75 @@ async def health():
         device_info["gpu_name"] = torch.cuda.get_device_name(0)
 
     return device_info
+
+
+# ============================================================================
+# IDRiD 微动脉瘤分割任务
+# ============================================================================
+
+@app.post("/api/idrid/ma")
+async def segment_idrid_ma(
+    file: UploadFile = File(..., description="图像文件（JPG/PNG）"),
+    checkpoint: str = Form("../IDRID_Segmentation/net.pt7", description="IDRiD MA模型checkpoint路径"),
+    threshold: float = Form(0.5, description="分割阈值（0-1）"),
+    input_size: int = Form(96, description="输入图像尺寸")
+):
+    """
+    IDRiD 微动脉瘤分割
+
+    参数:
+    - file: 图像文件
+    - checkpoint: 模型checkpoint路径，默认 ../IDRID_Segmentation/net.pt7
+    - threshold: 分割阈值，默认0.5
+    - input_size: 输入尺寸，默认96
+
+    返回:
+    - originalImage: 原图base64
+    - maskImage: 掩码base64
+    - num_lesions: 病变数量
+    - lesion_area: 病变面积
+    - lesion_ratio: 病变占比
+    """
+    # 验证文件
+    if not file.content_type or not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="仅支持图片文件")
+
+    content = await file.read()
+
+    MAX_SIZE = 10 * 1024 * 1024
+    if len(content) > MAX_SIZE:
+        raise HTTPException(status_code=400, detail="文件过大，最大10MB")
+
+    try:
+        result = inference_service.predict_idrid_ma(
+            image_bytes=content,
+            checkpoint_path=checkpoint,
+            input_size=input_size,
+            threshold=threshold
+        )
+
+        # 转换为base64
+        original_b64 = base64.b64encode(content).decode('utf-8')
+        mask_b64 = base64.b64encode(result['mask']).decode('utf-8')
+
+        return {
+            "success": True,
+            "task": "idrid_microaneurysm_segmentation",
+            "data": {
+                "originalImage": f"data:{file.content_type};base64,{original_b64}",
+                "maskImage": f"data:image/png;base64,{mask_b64}",
+                "num_lesions": result['num_lesions'],
+                "lesion_area": result['lesion_area'],
+                "lesion_ratio": result['lesion_ratio_str'],
+                "threshold": threshold,
+                "shape": f"{result['original_size'][0]}x{result['original_size'][1]}"
+            }
+        }
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"微动脉瘤分割失败: {str(e)}")
 
 
 # ============================================================================
@@ -309,6 +380,14 @@ async def list_tasks():
                 "id": "segmentation",
                 "name": "眼底血管分割",
                 "endpoint": "/api/segment",
+                "method": "POST",
+                "required_params": ["file"],
+                "optional_params": ["checkpoint", "threshold", "input_size"]
+            },
+            {
+                "id": "idrid_ma",
+                "name": "IDRiD微动脉瘤分割",
+                "endpoint": "/api/idrid/ma",
                 "method": "POST",
                 "required_params": ["file"],
                 "optional_params": ["checkpoint", "threshold", "input_size"]

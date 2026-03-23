@@ -47,38 +47,96 @@
 
         <!-- Settings -->
         <div class="settings-section" v-if="!processing && !result">
+          <!-- Task Type Selector -->
+          <div class="task-selector">
+            <label class="task-label">选择任务类型</label>
+            <el-radio-group v-model="settings.taskType" class="task-radio-group">
+              <el-radio-button value="ai">AI 智能分析</el-radio-button>
+              <el-radio-button value="idrid_ma">微动脉瘤分割</el-radio-button>
+              <el-radio-button value="vessel_seg">血管分割</el-radio-button>
+              <el-radio-button value="dr_classify">DR 分类</el-radio-button>
+            </el-radio-group>
+          </div>
+
           <el-collapse v-model="settingsOpen">
             <el-collapse-item title="分析设置" name="settings">
-              <el-form-item label="运行分割">
-                <el-switch v-model="settings.run_segmentation" />
-              </el-form-item>
-              <el-form-item label="运行分类">
-                <el-switch v-model="settings.run_classification" />
-              </el-form-item>
-              <el-form-item label="分割阈值">
-                <div class="slider-container">
-                  <el-slider
-                    v-model="settings.seg_threshold"
-                    :min="0"
-                    :max="1"
-                    :step="0.01"
-                    :show-tooltip="true"
-                  />
-                  <span class="slider-value">{{ (settings.seg_threshold * 100).toFixed(0) }}%</span>
+              <!-- AI Analysis Settings -->
+              <template v-if="settings.taskType === 'ai'">
+                <el-form-item label="运行分割">
+                  <el-switch v-model="settings.run_segmentation" />
+                </el-form-item>
+                <el-form-item label="运行分类">
+                  <el-switch v-model="settings.run_classification" />
+                </el-form-item>
+                <el-form-item label="分割阈值">
+                  <div class="slider-container">
+                    <el-slider
+                      v-model="settings.seg_threshold"
+                      :min="0"
+                      :max="1"
+                      :step="0.01"
+                      :show-tooltip="true"
+                    />
+                    <span class="slider-value">{{ (settings.seg_threshold * 100).toFixed(0) }}%</span>
+                  </div>
+                </el-form-item>
+                <el-form-item label="AI 创意度">
+                  <div class="slider-container">
+                    <el-slider
+                      v-model="settings.temperature"
+                      :min="0"
+                      :max="1"
+                      :step="0.1"
+                      :show-tooltip="true"
+                    />
+                    <span class="slider-value">{{ settings.temperature }}</span>
+                  </div>
+                </el-form-item>
+              </template>
+
+              <!-- IDRiD MA Settings -->
+              <template v-if="settings.taskType === 'idrid_ma'">
+                <el-form-item label="分割阈值">
+                  <div class="slider-container">
+                    <el-slider
+                      v-model="settings.ma_threshold"
+                      :min="0"
+                      :max="1"
+                      :step="0.01"
+                      :show-tooltip="true"
+                    />
+                    <span class="slider-value">{{ (settings.ma_threshold * 100).toFixed(0) }}%</span>
+                  </div>
+                </el-form-item>
+                <div class="task-desc">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>IDRiD 微动脉瘤分割模型，用于检测眼底图像中的微动脉瘤病变区域</span>
                 </div>
-              </el-form-item>
-              <el-form-item label="AI 创意度">
-                <div class="slider-container">
-                  <el-slider
-                    v-model="settings.temperature"
-                    :min="0"
-                    :max="1"
-                    :step="0.1"
-                    :show-tooltip="true"
-                  />
-                  <span class="slider-value">{{ settings.temperature }}</span>
+              </template>
+
+              <!-- Vessel Segmentation Settings -->
+              <template v-if="settings.taskType === 'vessel_seg'">
+                <el-form-item label="分割阈值">
+                  <div class="slider-container">
+                    <el-slider
+                      v-model="settings.seg_threshold"
+                      :min="0"
+                      :max="1"
+                      :step="0.01"
+                      :show-tooltip="true"
+                    />
+                    <span class="slider-value">{{ (settings.seg_threshold * 100).toFixed(0) }}%</span>
+                  </div>
+                </el-form-item>
+              </template>
+
+              <!-- DR Classification Settings -->
+              <template v-if="settings.taskType === 'dr_classify'">
+                <div class="task-desc">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>糖尿病视网膜病变(DR)二分类检测，判断是否存在 DR 病变</span>
                 </div>
-              </el-form-item>
+              </template>
             </el-collapse-item>
           </el-collapse>
 
@@ -91,7 +149,7 @@
             @click="startAnalysis"
           >
             <el-icon><MagicStick /></el-icon>
-            开始 AI 分析
+            {{ analyzeButtonText }}
           </el-button>
         </div>
 
@@ -137,20 +195,58 @@
           <!-- Result Header -->
           <div class="result-header">
             <el-alert
-              title="分析完成"
+              :title="resultTitle"
               type="success"
               :closable="false"
               show-icon
             >
               <template #default>
-                耗时: {{ result.data.metadata?.total_time_ms }}ms | 模型: {{ result.data.ai_analysis?.model_used || 'VisionFM' }}
+                {{ resultSubtitle }}
               </template>
             </el-alert>
           </div>
 
           <!-- Tab Navigation -->
           <el-tabs v-model="activeTab" class="result-tabs">
-            <el-tab-pane label="分割结果" name="segment">
+            <!-- IDRiD MA Result -->
+            <el-tab-pane label="分割结果" name="segment" v-if="result.task === 'idrid_microaneurysm_segmentation'">
+              <div class="result-images">
+                <div class="image-col" v-if="result.data.originalImage">
+                  <h4>原始图片</h4>
+                  <el-image :src="result.data.originalImage" fit="contain" class="result-image" />
+                </div>
+                <div class="image-col" v-if="result.data.maskImage">
+                  <h4>微动脉瘤分割掩码</h4>
+                  <el-image :src="result.data.maskImage" fit="contain" class="result-image" />
+                </div>
+              </div>
+              <!-- MA Statistics -->
+              <div class="result-stats">
+                <el-row :gutter="16">
+                  <el-col :span="8">
+                    <div class="stat-card">
+                      <div class="stat-value">{{ result.data.num_lesions }}</div>
+                      <div class="stat-label">病变数量</div>
+                    </div>
+                  </el-col>
+                  <el-col :span="8">
+                    <div class="stat-card">
+                      <div class="stat-value">{{ result.data.lesion_area }}</div>
+                      <div class="stat-label">病变像素</div>
+                    </div>
+                  </el-col>
+                  <el-col :span="8">
+                    <div class="stat-card">
+                      <div class="stat-value highlight">{{ result.data.lesion_ratio }}</div>
+                      <div class="stat-label">病变占比</div>
+                    </div>
+                  </el-col>
+                </el-row>
+              </div>
+            </el-tab-pane>
+
+            <!-- Standard Segmentation Result -->
+            <el-tab-pane label="分割结果" name="segment" v-else-if="result.data.images?.original">
               <!-- Images Row -->
               <div class="result-images">
                 <div class="image-col" v-if="result.data.images?.original">
@@ -160,6 +256,18 @@
                 <div class="image-col" v-if="result.data.images?.mask">
                   <h4>血管分割掩码</h4>
                   <el-image :src="result.data.images.mask" fit="contain" class="result-image" />
+                </div>
+              </div>
+            </el-tab-pane>
+
+            <!-- Classification Result -->
+            <el-tab-pane label="分类结果" name="classify" v-if="result.task === 'binary_classification'">
+              <div class="classify-result">
+                <div class="classify-card" :class="result.data.predicted_class === 1 ? 'danger' : 'normal'">
+                  <el-icon :size="48"><Warning v-if="result.data.predicted_class === 1" /><CircleCheck v-else /></el-icon>
+                  <div class="classify-label">{{ result.data.predicted_class === 1 ? 'DR 阳性' : '健康' }}</div>
+                  <div class="classify-prob">概率: {{ (result.data.probability * 100).toFixed(1) }}%</div>
+                  <div class="classify-conf">置信度: {{ (result.data.confidence * 100).toFixed(1) }}%</div>
                 </div>
               </div>
             </el-tab-pane>
@@ -175,9 +283,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import axios from 'axios'
-import { View, MagicStick, UploadFilled, RefreshRight, Download, Picture } from '@element-plus/icons-vue'
+import { View, MagicStick, UploadFilled, RefreshRight, Download, Picture, InfoFilled, Warning, CircleCheck } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 // API 配置
@@ -196,12 +304,40 @@ const activeTab = ref('segment')
 
 // 设置
 const settings = reactive({
+  taskType: 'ai',  // ai, idrid_ma, vessel_seg, dr_classify
   run_segmentation: true,
   run_classification: true,
   seg_checkpoint: 'checkpoints/seg/checkpoint_108_linear.pth',
   cls_checkpoint: 'checkpoints/single_cls/checkpoint_teacher_linear.pth',
+  ma_checkpoint: 'checkpoints/idrid_ma/net.pt7',
   seg_threshold: 0.5,
+  ma_threshold: 0.5,
   temperature: 0.7
+})
+
+// 计算属性
+const analyzeButtonText = computed(() => {
+  switch (settings.taskType) {
+    case 'idrid_ma': return '开始微动脉瘤分割'
+    case 'vessel_seg': return '开始血管分割'
+    case 'dr_classify': return '开始 DR 分类'
+    default: return '开始 AI 分析'
+  }
+})
+
+const resultTitle = computed(() => {
+  if (!result.value) return ''
+  if (result.value.task === 'idrid_microaneurysm_segmentation') return '微动脉瘤分割完成'
+  if (result.value.task === 'binary_classification') return 'DR 分类完成'
+  return '分析完成'
+})
+
+const resultSubtitle = computed(() => {
+  if (!result.value) return ''
+  if (result.value.data.metadata?.total_time_ms) {
+    return `耗时: ${result.value.data.metadata.total_time_ms}ms | 模型: ${result.value.data.ai_analysis?.model_used || 'VisionFM'}`
+  }
+  return `任务: ${result.value.task}`
 })
 
 // 文件处理
@@ -224,7 +360,7 @@ const clearPreview = () => {
   uploadedFile.value = null
 }
 
-// 开始分析 - 统一调用 AI 分析接口
+// 开始分析 - 根据任务类型调用不同接口
 const startAnalysis = async () => {
   if (!uploadedFile.value) return
 
@@ -236,14 +372,6 @@ const startAnalysis = async () => {
   const formData = new FormData()
   formData.append('file', uploadedFile.value)
 
-  // 统一使用 AI 分析接口
-  formData.append('run_segmentation', settings.run_segmentation.toString())
-  formData.append('run_classification', settings.run_classification.toString())
-  formData.append('seg_checkpoint', settings.seg_checkpoint)
-  formData.append('cls_checkpoint', settings.cls_checkpoint)
-  formData.append('seg_threshold', settings.seg_threshold.toString())
-  formData.append('temperature', settings.temperature.toString())
-
   const uploadProgress = (progressEvent: any) => {
     if (progressEvent.total) {
       const percentCompleted = Math.round((progressEvent.loaded * 30) / progressEvent.total)
@@ -253,15 +381,78 @@ const startAnalysis = async () => {
 
   try {
     statusMessage.value = '正在上传...'
+    let response: any
 
-    const response = await axios.post(`${API_BASE}/api/ai/analyze`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: uploadProgress,
-      timeout: 300000
-    })
+    // 根据任务类型调用不同的 API
+    switch (settings.taskType) {
+      case 'idrid_ma':
+        // IDRiD 微动脉瘤分割
+        formData.append('checkpoint', settings.ma_checkpoint)
+        formData.append('threshold', settings.ma_threshold.toString())
+        formData.append('input_size', '96')
+        response = await axios.post(`${API_BASE}/api/idrid/ma`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: uploadProgress,
+          timeout: 120000
+        })
+        break
+
+      case 'vessel_seg':
+        // 血管分割
+        formData.append('checkpoint', settings.seg_checkpoint)
+        formData.append('threshold', settings.seg_threshold.toString())
+        formData.append('input_size', '512')
+        response = await axios.post(`${API_BASE}/api/segment`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: uploadProgress,
+          timeout: 120000
+        })
+        // 转换格式以统一显示
+        response = {
+          data: {
+            success: true,
+            task: 'vessel_segmentation',
+            data: {
+              images: {
+                original: response.data.data.originalImage,
+                mask: response.data.data.maskImage
+              }
+            }
+          }
+        }
+        response.data = response.data.data
+        break
+
+      case 'dr_classify':
+        // DR 二分类
+        formData.append('checkpoint', settings.cls_checkpoint)
+        formData.append('input_size', '224')
+        response = await axios.post(`${API_BASE}/api/classify/binary`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: uploadProgress,
+          timeout: 120000
+        })
+        break
+
+      case 'ai':
+      default:
+        // AI 智能分析
+        formData.append('run_segmentation', settings.run_segmentation.toString())
+        formData.append('run_classification', settings.run_classification.toString())
+        formData.append('seg_checkpoint', settings.seg_checkpoint)
+        formData.append('cls_checkpoint', settings.cls_checkpoint)
+        formData.append('seg_threshold', settings.seg_threshold.toString())
+        formData.append('temperature', settings.temperature.toString())
+        response = await axios.post(`${API_BASE}/api/ai/analyze`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: uploadProgress,
+          timeout: 300000
+        })
+        break
+    }
 
     progress.value = 50
-    statusMessage.value = 'AI 分析中...'
+    statusMessage.value = '处理中...'
     await new Promise(resolve => setTimeout(resolve, 500))
 
     progress.value = 80
@@ -412,6 +603,56 @@ const formatMarkdown = (content: string): string => {
   border-radius: 16px;
   padding: 20px;
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Task Selector */
+.task-selector {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.task-label {
+  display: block;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.task-radio-group {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-radio-group :deep(.el-radio-button) {
+  flex: 1;
+}
+
+.task-radio-group :deep(.el-radio-button__inner) {
+  width: 100%;
+  padding: 8px 4px;
+  font-size: 12px;
+}
+
+.task-desc {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(0, 217, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.task-desc .el-icon {
+  color: #00d9ff;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 /* Upload */
@@ -734,6 +975,78 @@ const formatMarkdown = (content: string): string => {
 
 .ai-report-content :deep(strong) {
   color: #00ff88;
+}
+
+/* Result Stats */
+.result-stats {
+  margin-top: 20px;
+}
+
+.stat-card {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #00d9ff;
+}
+
+.stat-value.highlight {
+  color: #ff6b6b;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 4px;
+}
+
+/* Classification Result */
+.classify-result {
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.classify-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 60px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.classify-card.normal {
+  border: 2px solid rgba(0, 255, 136, 0.3);
+}
+
+.classify-card.normal .el-icon {
+  color: #00ff88;
+}
+
+.classify-card.danger {
+  border: 2px solid rgba(255, 107, 107, 0.3);
+}
+
+.classify-card.danger .el-icon {
+  color: #ff6b6b;
+}
+
+.classify-label {
+  font-size: 24px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.classify-prob, .classify-conf {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Scrollbar */

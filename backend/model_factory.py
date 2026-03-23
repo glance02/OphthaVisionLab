@@ -6,11 +6,16 @@ import torch
 import torch.nn as nn
 from pathlib import Path
 import sys
+import os
+
+# 添加当前目录到路径
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import models
 import utils
 from models.unetr_head import Unetr_Head
 from models.head import ClsHead
+from models.msrnet import MSRNet
 
 
 class SegModel(nn.Module):
@@ -241,4 +246,38 @@ class ModelFactory:
 
         # 组合模型
         model = ClsModel(encoder, head, n_last_blocks, avgpool).to(self.device).eval()
+        return model
+
+    def create_idrid_ma_model(self, checkpoint_path, in_channels=1, feature=32, out_channels=2):
+        """创建 IDRiD 微动脉瘤分割模型 (MSRNet)"""
+        model = MSRNet(in_=in_channels, feature=feature, out_channels=out_channels)
+
+        # 加载 checkpoint
+        if checkpoint_path and Path(checkpoint_path).exists():
+            checkpoint = torch.load(checkpoint_path, map_location='cpu')
+
+            # 兼容不同格式的 checkpoint
+            if 'net' in checkpoint:
+                # checkpoint 结构为 {'net': state_dict, 'best_loss': ..., 'epoch': ...}
+                state_dict = checkpoint['net']
+            else:
+                # checkpoint 直接就是 state_dict
+                state_dict = checkpoint
+
+            # 去掉 'module.' 前缀（DataParallel/DDP 保存的模型）
+            from collections import OrderedDict
+            new_state_dict = OrderedDict()
+            for k, v in state_dict.items():
+                if k.startswith('module.'):
+                    new_state_dict[k[7:]] = v
+                else:
+                    new_state_dict[k] = v
+
+            result = model.load_state_dict(new_state_dict, strict=False)
+            print(f"权重加载: missing={len(result.missing_keys)}, unexpected={len(result.unexpected_keys)}")
+            print(f"✓ IDRiD MA模型权重加载成功: {checkpoint_path}")
+        else:
+            print(f"⚠ Checkpoint 不存在: {checkpoint_path}, 使用随机初始化")
+
+        model = model.to(self.device).eval()
         return model

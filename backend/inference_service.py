@@ -13,6 +13,7 @@ import cv2
 import sys
 
 from model_factory import ModelFactory
+from models.msrnet import MSRNet
 
 
 class InferenceService:
@@ -193,6 +194,97 @@ class InferenceService:
             'probabilities': probs_np.tolist(),
             'num_classes': num_labels
         }
+
+    def predict_idrid_ma(self, image_bytes: bytes, checkpoint_path,
+                        threshold=0.5, input_size=96):
+        """
+        IDRiD 微动脉瘤分割预测
+
+        参数:
+            image_bytes: 图像字节数据
+            checkpoint_path: 模型checkpoint路径
+            threshold: 分割阈值
+            input_size: 输入尺寸，默认96
+
+        返回:
+            dict: 包含掩码和统计信息
+        """
+        cache_key = f"idrid_ma_{Path(checkpoint_path).stem}"
+
+        if cache_key not in self.models:
+            print(f"加载 IDRiD MA 模型: {cache_key}")
+            model = self.factory.create_idrid_ma_model(checkpoint_path)
+            self.models[cache_key] = model
+
+        model = self.models[cache_key]
+
+        # 预处理：转换为灰度图并调整尺寸
+        img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+        img_gray = img.convert('L')  # 转灰度
+        img_array = np.array(img_gray)
+
+        # 保存原始尺寸
+        original_size = img_array.shape
+
+        # 调整到模型输入尺寸
+        img_resized = cv2.resize(img_array, (input_size, input_size))
+
+        # 归一化到 [0, 1]
+        img_normalized = img_resized.astype(np.float32) / 255.0
+
+        # 转换为张量 [1, 1, H, W]
+        img_tensor = torch.from_numpy(img_normalized).unsqueeze(0).unsqueeze(0).to(self.device)
+
+        # 推理
+        with torch.no_grad():
+            output = model(img_tensor)
+
+            # 获取预测结果 (背景/微动脉瘤)
+            # 注意：训练时使用了 nn.LogSoftmax，所以需要用 exp 转换
+            # 但如果模型权重未正确加载，输出会接近随机值
+            output_np = output.cpu().numpy()
+            print(f"模型输出统计: min={output_np.min():.4f}, max={output_np.max():.4f}, mean={output_np.mean():.4f}")
+
+            pred = torch.exp(output)
+            pred_mask = pred[0, 1, :, :].cpu().numpy()  # 微动脉瘤通道
+
+            # 二值化
+            binary_mask = (pred_mask > threshold).astype(np.uint8)
+
+        # 调整掩码回原始尺寸
+        binary_mask_resized = cv2.resize(binary_mask, original_size[::-1])
+
+        # 计算微动脉瘤数量（使用连通域分析）
+        num_lesions = self._count_lesions(binary_mask_resized)
+
+        # 计算病变占比
+        lesion_area = np.sum(binary_mask_resized > 0)
+        total_area = binary_mask_resized.shape[0] * binary_mask_resized.shape[1]
+        lesion_ratio = lesion_area / total_area * 100
+
+        # 生成掩码图像
+        mask_img = Image.fromarray(binary_mask_resized * 255)
+        mask_bytes = io.BytesIO()
+        mask_img.save(mask_bytes, format='PNG')
+
+        return {
+            'mask': mask_bytes.getvalue(),
+            'mask_array': binary_mask_resized,
+            'num_lesions': num_lesions,
+            'lesion_area': int(lesion_area),
+            'lesion_ratio': float(lesion_ratio),
+            'lesion_ratio_str': f"{lesion_ratio:.2f}%",
+            'probability_map': pred_mask.tolist(),
+            'original_size': original_size
+        }
+
+    def _count_lesions(self, binary_mask):
+        """计算连通域数量（近似的微动脉瘤数量）"""
+        # 使用 OpenCV 查找连通域
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_mask, connectivity=8)
+
+        # 排除背景（label 0）
+        return max(0, num_labels - 1)
 
 
 # 全局服务实例
