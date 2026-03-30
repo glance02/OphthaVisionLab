@@ -91,9 +91,10 @@ async def health():
 @app.post("/api/idrid/ma")
 async def segment_idrid_ma(
     file: UploadFile = File(..., description="图像文件（JPG/PNG）"),
-    checkpoint: str = Form("../IDRID_Segmentation/net.pt7", description="IDRiD MA模型checkpoint路径"),
+    checkpoint: str = Form("checkpoints/idrid_ma/net.pt7", description="IDRiD MA模型checkpoint路径"),
     threshold: float = Form(0.5, description="分割阈值（0-1）"),
-    input_size: int = Form(96, description="输入图像尺寸")
+    patch_size: int = Form(96, description="Patch 尺寸"),
+    stride: int = Form(50, description="步长")
 ):
     """
     IDRiD 微动脉瘤分割
@@ -102,7 +103,8 @@ async def segment_idrid_ma(
     - file: 图像文件
     - checkpoint: 模型checkpoint路径，默认 ../IDRID_Segmentation/net.pt7
     - threshold: 分割阈值，默认0.5
-    - input_size: 输入尺寸，默认96
+    - patch_size: Patch 尺寸，默认96
+    - stride: 步长，默认50
 
     返回:
     - originalImage: 原图base64
@@ -125,8 +127,9 @@ async def segment_idrid_ma(
         result = inference_service.predict_idrid_ma(
             image_bytes=content,
             checkpoint_path=checkpoint,
-            input_size=input_size,
-            threshold=threshold
+            threshold=threshold,
+            patch_size=patch_size,
+            stride=stride
         )
 
         # 转换为base64

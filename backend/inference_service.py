@@ -11,9 +11,17 @@ from pathlib import Path
 import io
 import cv2
 import sys
+import os
 
 from model_factory import ModelFactory
 from models.msrnet import MSRNet
+from idrid_seg.networks import MSRNet as IDRID_MSRNet
+from idrid_seg.pre_processing import my_PreProc
+from idrid_seg.extract_patches import (
+    paint_border_overlap,
+    extract_ordered_overlap,
+    recompone_overlap
+)
 
 
 class InferenceService:
@@ -196,15 +204,16 @@ class InferenceService:
         }
 
     def predict_idrid_ma(self, image_bytes: bytes, checkpoint_path,
-                        threshold=0.5, input_size=96):
+                        threshold=0.5, patch_size=96, stride=50):
         """
-        IDRiD 微动脉瘤分割预测
+        IDRiD 微动脉瘤分割预测（正确实现）
 
         参数:
             image_bytes: 图像字节数据
             checkpoint_path: 模型checkpoint路径
             threshold: 分割阈值
-            input_size: 输入尺寸，默认96
+            patch_size: patch 尺寸，默认96
+            stride: 步长，默认50
 
         返回:
             dict: 包含掩码和统计信息
@@ -218,64 +227,84 @@ class InferenceService:
 
         model = self.models[cache_key]
 
-        # 预处理：转换为灰度图并调整尺寸
+        # 1. 读取并转换图像为 RGB 格式
         img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-        img_gray = img.convert('L')  # 转灰度
-        img_array = np.array(img_gray)
+        img_array = np.array(img)
 
         # 保存原始尺寸
-        original_size = img_array.shape
+        orig_h, orig_w = img_array.shape[:2]
 
-        # 调整到模型输入尺寸
-        img_resized = cv2.resize(img_array, (input_size, input_size))
+        # 2. 转换为模型输入格式 (N, 3, H, W)
+        img_input = img_array.astype(np.float32) / 255.0
+        img_input = np.transpose(img_input, (2, 0, 1))  # HWC -> CHW
+        img_input = np.expand_dims(img_input, axis=0)  # 添加 batch 维度
 
-        # 归一化到 [0, 1]
-        img_normalized = img_resized.astype(np.float32) / 255.0
+        # 3. 预处理：rgb2gray + CLAHE + Gamma校正
+        img_preprocessed = my_PreProc(img_input)  # 输出 (1, 1, H, W)
 
-        # 转换为张量 [1, 1, H, W]
-        img_tensor = torch.from_numpy(img_normalized).unsqueeze(0).unsqueeze(0).to(self.device)
+        # 4. 填充边界以适配 patch 尺寸
+        img_padded = paint_border_overlap(img_preprocessed, patch_size, patch_size, stride, stride)
+        padded_h, padded_w = img_padded.shape[2], img_padded.shape[3]
 
-        # 推理
+        # 5. 提取 patches
+        patches = extract_ordered_overlap(img_padded, patch_size, patch_size, stride, stride)
+        # patches: (N, 1, 96, 96)
+
+        # 6. 批量推理
         with torch.no_grad():
-            output = model(img_tensor)
+            # 分批处理避免内存溢出
+            batch_size = 64
+            all_preds = []
 
-            # 获取预测结果 (背景/微动脉瘤)
-            # 注意：训练时使用了 nn.LogSoftmax，所以需要用 exp 转换
-            # 但如果模型权重未正确加载，输出会接近随机值
-            output_np = output.cpu().numpy()
-            print(f"模型输出统计: min={output_np.min():.4f}, max={output_np.max():.4f}, mean={output_np.mean():.4f}")
+            for i in range(0, len(patches), batch_size):
+                batch_patches = patches[i:i+batch_size]
+                # 转换为 float32 以匹配模型权重类型
+                batch_tensor = torch.from_numpy(batch_patches.astype(np.float32)).to(self.device)
+                output = model(batch_tensor)
+                # 使用 softmax 而不是 exp，因为模型输出已经是 log_softmax
+                pred = torch.exp(output)
+                all_preds.append(pred.cpu().numpy())
 
-            pred = torch.exp(output)
-            pred_mask = pred[0, 1, :, :].cpu().numpy()  # 微动脉瘤通道
+            all_preds = np.concatenate(all_preds, axis=0)
 
-            # 二值化
-            binary_mask = (pred_mask > threshold).astype(np.uint8)
+            # 取微动脉瘤通道 (index 1)
+            pred_patches = all_preds[:, 1, :, :]  # (N, 96, 96)
 
-        # 调整掩码回原始尺寸
-        binary_mask_resized = cv2.resize(binary_mask, original_size[::-1])
+            # 添加通道维度 (N, 1, 96, 96)
+            pred_patches = np.expand_dims(pred_patches, axis=1)
+
+        # 7. 重建图像
+        pred_img = recompone_overlap(pred_patches, padded_h, padded_w, stride, stride)
+        # pred_img: (1, 1, padded_h, padded_w)
+
+        # 8. 裁剪回原始尺寸
+        pred_img = pred_img[0, :, :orig_h, :orig_w]
+
+        # 9. 二值化
+        binary_mask = (pred_img[0] > threshold).astype(np.uint8)
 
         # 计算微动脉瘤数量（使用连通域分析）
-        num_lesions = self._count_lesions(binary_mask_resized)
+        num_lesions = self._count_lesions(binary_mask)
 
         # 计算病变占比
-        lesion_area = np.sum(binary_mask_resized > 0)
-        total_area = binary_mask_resized.shape[0] * binary_mask_resized.shape[1]
+        lesion_area = np.sum(binary_mask > 0)
+        total_area = binary_mask.shape[0] * binary_mask.shape[1]
         lesion_ratio = lesion_area / total_area * 100
 
         # 生成掩码图像
-        mask_img = Image.fromarray(binary_mask_resized * 255)
+        mask_img = Image.fromarray(binary_mask * 255)
         mask_bytes = io.BytesIO()
         mask_img.save(mask_bytes, format='PNG')
 
         return {
             'mask': mask_bytes.getvalue(),
-            'mask_array': binary_mask_resized,
+            'mask_array': binary_mask,
             'num_lesions': num_lesions,
             'lesion_area': int(lesion_area),
             'lesion_ratio': float(lesion_ratio),
             'lesion_ratio_str': f"{lesion_ratio:.2f}%",
-            'probability_map': pred_mask.tolist(),
-            'original_size': original_size
+            'probability_map': pred_img[0].tolist(),
+            'original_size': (orig_h, orig_w)
         }
 
     def _count_lesions(self, binary_mask):

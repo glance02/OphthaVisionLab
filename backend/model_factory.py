@@ -16,6 +16,7 @@ import utils
 from models.unetr_head import Unetr_Head
 from models.head import ClsHead
 from models.msrnet import MSRNet
+from idrid_seg.networks import MSRNet as IDRID_MSRNet
 
 
 class SegModel(nn.Module):
@@ -250,7 +251,7 @@ class ModelFactory:
 
     def create_idrid_ma_model(self, checkpoint_path, in_channels=1, feature=32, out_channels=2):
         """创建 IDRiD 微动脉瘤分割模型 (MSRNet)"""
-        model = MSRNet(in_=in_channels, feature=feature, out_channels=out_channels)
+        model = IDRID_MSRNet(in_=in_channels, feature=feature, out_channels=out_channels)
 
         # 加载 checkpoint
         if checkpoint_path and Path(checkpoint_path).exists():
