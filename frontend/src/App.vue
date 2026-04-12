@@ -1,291 +1,209 @@
 <template>
   <div class="app">
-    <!-- Header -->
-    <header class="app-header">
-      <div class="header-left">
-        <el-icon class="logo-icon"><View /></el-icon>
-        <h1 class="app-title">VisionFM</h1>
-        <span class="header-subtitle">眼科 AI 智能分析系统</span>
-      </div>
-      <div class="header-right">
-        <el-button text @click="handleNewTask" v-if="result">
-          <el-icon><RefreshRight /></el-icon>
-          新建分析
-        </el-button>
-      </div>
-    </header>
+    <!-- Left Column: Settings & Upload -->
+    <aside class="left-column">
+      <!-- Upper: System Name & Introduction -->
+      <div class="upper-section">
+        <div class="system-name">
+          <el-icon class="logo-icon"><View /></el-icon>
+          <span>AI智能眼科分析</span>
+        </div>
 
-    <!-- Main Content -->
-    <main class="app-main">
-      <!-- Left Panel: Upload & Settings -->
-      <aside class="left-panel">
-        <!-- Upload Area -->
-        <div class="upload-section" v-if="!processing && !result">
-          <el-upload
-            class="upload-area"
-            drag
-            :auto-upload="false"
-            :show-file-list="false"
-            accept=".jpg,.jpeg,.png"
-            :on-change="handleFileChange"
-            :limit="1"
-          >
-            <el-icon class="upload-icon"><UploadFilled /></el-icon>
-            <div class="upload-text">拖拽图片到此处或点击上传</div>
-            <div class="upload-hint">支持 JPG/PNG 格式，最大 10MB</div>
-          </el-upload>
-
-          <!-- Image Preview -->
-          <div v-if="previewUrl" class="preview-box">
-            <div class="preview-header">
-              <span>已选择图片</span>
-              <el-button type="danger" text size="small" @click="clearPreview">清除</el-button>
-            </div>
-            <el-image :src="previewUrl" fit="contain" class="preview-image" />
-          </div>
+        <div class="intro-section">
+          <span class="section-title">功能介绍</span>
+          <p class="intro-text">
+            通过眼科图片进行血管分割、微动脉瘤分割和AI智能分析
+          </p>
         </div>
 
         <!-- Settings -->
-        <div class="settings-section" v-if="!processing && !result">
-          <!-- Task Type Selector -->
-          <div class="task-selector">
-            <label class="task-label">选择任务类型</label>
-            <el-radio-group v-model="settings.taskType" class="task-radio-group">
-              <el-radio-button value="ai">AI 智能分析</el-radio-button>
-              <el-radio-button value="idrid_ma">微动脉瘤分割</el-radio-button>
-              <el-radio-button value="vessel_seg">血管分割</el-radio-button>
-              <el-radio-button value="dr_classify">DR 分类</el-radio-button>
-            </el-radio-group>
+        <div class="settings-section">
+          <span class="section-title">分割阈值设置</span>
+          <div class="threshold-control">
+            <span>血管分割阈值: {{ settings.seg_threshold.toFixed(2) }}</span>
+            <el-slider
+              v-model="settings.seg_threshold"
+              :min="0"
+              :max="1"
+              :step="0.01"
+              :show-tooltip="false"
+            />
           </div>
+          <div class="threshold-control">
+            <span>微动脉瘤阈值: {{ settings.ma_threshold.toFixed(2) }}</span>
+            <el-slider
+              v-model="settings.ma_threshold"
+              :min="0"
+              :max="1"
+              :step="0.01"
+              :show-tooltip="false"
+            />
+          </div>
+        </div>
+      </div>
 
-          <el-collapse v-model="settingsOpen">
-            <el-collapse-item title="分析设置" name="settings">
-              <!-- AI Analysis Settings -->
-              <template v-if="settings.taskType === 'ai'">
-                <el-form-item label="运行分割">
-                  <el-switch v-model="settings.run_segmentation" />
-                </el-form-item>
-                <el-form-item label="运行分类">
-                  <el-switch v-model="settings.run_classification" />
-                </el-form-item>
-                <el-form-item label="分割阈值">
-                  <div class="slider-container">
-                    <el-slider
-                      v-model="settings.seg_threshold"
-                      :min="0"
-                      :max="1"
-                      :step="0.01"
-                      :show-tooltip="true"
-                    />
-                    <span class="slider-value">{{ (settings.seg_threshold * 100).toFixed(0) }}%</span>
-                  </div>
-                </el-form-item>
-                <el-form-item label="AI 创意度">
-                  <div class="slider-container">
-                    <el-slider
-                      v-model="settings.temperature"
-                      :min="0"
-                      :max="1"
-                      :step="0.1"
-                      :show-tooltip="true"
-                    />
-                    <span class="slider-value">{{ settings.temperature }}</span>
-                  </div>
-                </el-form-item>
-              </template>
+      <!-- Lower: Upload & Preview -->
+      <div class="lower-section">
+        <span class="section-title">上传图片</span>
+        <el-upload
+          v-if="!previewUrl && !processing && !vesselResult && !maResult"
+          class="upload-btn"
+          drag
+          :auto-upload="false"
+          :show-file-list="false"
+          accept=".jpg,.jpeg,.png"
+          :on-change="handleFileChange"
+          :limit="1"
+        >
+          <el-icon class="upload-icon"><UploadFilled /></el-icon>
+          <span>点击上传或拖拽</span>
+        </el-upload>
 
-              <!-- IDRiD MA Settings -->
-              <template v-if="settings.taskType === 'idrid_ma'">
-                <el-form-item label="分割阈值">
-                  <div class="slider-container">
-                    <el-slider
-                      v-model="settings.ma_threshold"
-                      :min="0"
-                      :max="1"
-                      :step="0.01"
-                      :show-tooltip="true"
-                    />
-                    <span class="slider-value">{{ (settings.ma_threshold * 100).toFixed(0) }}%</span>
-                  </div>
-                </el-form-item>
-                <div class="task-desc">
-                  <el-icon><InfoFilled /></el-icon>
-                  <span>IDRiD 微动脉瘤分割模型，用于检测眼底图像中的微动脉瘤病变区域</span>
-                </div>
-              </template>
+        <!-- Preview -->
+        <div v-if="previewUrl" class="preview-box">
+          <div class="preview-label">原图预览</div>
+          <el-image :src="previewUrl" fit="contain" class="preview-image" />
+          <el-button type="danger" size="small" @click="clearPreview">删除</el-button>
+        </div>
 
-              <!-- Vessel Segmentation Settings -->
-              <template v-if="settings.taskType === 'vessel_seg'">
-                <el-form-item label="分割阈值">
-                  <div class="slider-container">
-                    <el-slider
-                      v-model="settings.seg_threshold"
-                      :min="0"
-                      :max="1"
-                      :step="0.01"
-                      :show-tooltip="true"
-                    />
-                    <span class="slider-value">{{ (settings.seg_threshold * 100).toFixed(0) }}%</span>
-                  </div>
-                </el-form-item>
-              </template>
-
-              <!-- DR Classification Settings -->
-              <template v-if="settings.taskType === 'dr_classify'">
-                <div class="task-desc">
-                  <el-icon><InfoFilled /></el-icon>
-                  <span>糖尿病视网膜病变(DR)二分类检测，判断是否存在 DR 病变</span>
-                </div>
-              </template>
-            </el-collapse-item>
-          </el-collapse>
-
-          <!-- Analyze Button -->
-          <el-button
-            type="primary"
-            size="large"
-            class="analyze-btn"
-            :disabled="!previewUrl"
-            @click="startAnalysis"
-          >
+        <!-- Actions -->
+        <div class="actions-section" v-if="previewUrl && !processing && !vesselResult">
+          <el-button type="primary" size="large" class="start-btn" @click="startAnalysis">
             <el-icon><MagicStick /></el-icon>
-            {{ analyzeButtonText }}
+            开始分析
           </el-button>
         </div>
 
-        <!-- Processing State -->
-        <div class="processing-section" v-if="processing">
+        <!-- New Analysis -->
+        <div class="actions-section" v-if="(vesselResult || maResult) && !processing">
+          <el-button @click="handleNewTask" size="large">
+            <el-icon><RefreshRight /></el-icon>
+            新建分析
+          </el-button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Middle Column: Results Display -->
+    <section class="middle-column">
+      <!-- Upper: Vessel Segmentation Results -->
+      <div class="result-section upper-section">
+        <div class="section-header">
+          <span>血管分割结果</span>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" v-if="!vesselResult && !processing">
+          <el-icon class="empty-icon"><Picture /></el-icon>
+          <p>上传图片后显示血管分割结果</p>
+        </div>
+
+        <!-- Processing -->
+        <div class="processing-status" v-if="processing && currentTask === 'vessel'">
           <el-progress
             :percentage="progress"
             :status="progressStatus"
-            :stroke-width="24"
+            :stroke-width="16"
             :text-inside="true"
           />
-          <div class="status-text">{{ statusMessage }}</div>
-          <div class="file-info-mini" v-if="uploadedFile">
-            {{ uploadedFile.name }} ({{ (uploadedFile.size / 1024).toFixed(1) }} KB)
+          <div class="status-text">正在执行血管分割...</div>
+        </div>
+
+        <!-- Result Images -->
+        <div class="result-images" v-if="vesselResult">
+          <div class="image-card">
+            <div class="image-header">血管分割结果</div>
+            <el-image
+              :src="vesselResult.maskImage"
+              fit="contain"
+              class="result-image"
+            />
           </div>
         </div>
+      </div>
 
-        <!-- Result Actions -->
-        <div class="result-actions-mini" v-if="result && !processing">
-          <el-button type="primary" @click="downloadImage(result.data.images?.original, 'original')">
-            <el-icon><Download /></el-icon> 原图
-          </el-button>
-          <el-button type="success" @click="downloadImage(result.data.images?.mask, 'mask')" v-if="result.data.images?.mask">
-            <el-icon><Download /></el-icon> 掩码
-          </el-button>
-          <el-button @click="downloadReport" v-if="result.data.ai_analysis">
-            <el-icon><Download /></el-icon> 报告
-          </el-button>
+      <!-- Lower: Microaneurysm Segmentation Results -->
+      <div class="result-section lower-section">
+        <div class="section-header">
+          <span>微动脉瘤分割结果</span>
         </div>
-      </aside>
 
-      <!-- Right Panel: Results -->
-      <section class="right-panel">
         <!-- Empty State -->
-        <div class="empty-state" v-if="!processing && !result">
+        <div class="empty-state" v-if="!maResult && !processing">
           <el-icon class="empty-icon"><Picture /></el-icon>
-          <h3>上传眼底图像开始 AI 分析</h3>
-          <p>自动进行血管分割、分类和 AI 智能分析</p>
+          <p>上传图片后显示微动脉瘤分割结果</p>
         </div>
 
-        <!-- Result with Tabs -->
-        <div class="result-container" v-if="result">
-          <!-- Result Header -->
-          <div class="result-header">
-            <el-alert
-              :title="resultTitle"
-              type="success"
-              :closable="false"
-              show-icon
-            >
-              <template #default>
-                {{ resultSubtitle }}
-              </template>
-            </el-alert>
+        <!-- Processing -->
+        <div class="processing-status" v-if="processing && currentTask === 'ma'">
+          <el-progress
+            :percentage="progress"
+            :status="progressStatus"
+            :stroke-width="16"
+            :text-inside="true"
+          />
+          <div class="status-text">正在执行微动脉瘤分割...</div>
+        </div>
+
+        <!-- Result Images -->
+        <div class="result-images" v-if="maResult">
+          <div class="image-card">
+            <div class="image-header">微动脉瘤分割结果</div>
+            <el-image
+              :src="maResult.maskImage"
+              fit="contain"
+              class="result-image"
+            />
           </div>
-
-          <!-- Tab Navigation -->
-          <el-tabs v-model="activeTab" class="result-tabs">
-            <!-- IDRiD MA Result -->
-            <el-tab-pane label="分割结果" name="segment" v-if="result.task === 'idrid_microaneurysm_segmentation'">
-              <div class="result-images">
-                <div class="image-col" v-if="result.data.originalImage">
-                  <h4>原始图片</h4>
-                  <el-image :src="result.data.originalImage" fit="contain" class="result-image" />
-                </div>
-                <div class="image-col" v-if="result.data.maskImage">
-                  <h4>微动脉瘤分割掩码</h4>
-                  <el-image :src="result.data.maskImage" fit="contain" class="result-image" />
-                </div>
-              </div>
-              <!-- MA Statistics -->
-              <div class="result-stats">
-                <el-row :gutter="16">
-                  <el-col :span="8">
-                    <div class="stat-card">
-                      <div class="stat-value">{{ result.data.num_lesions }}</div>
-                      <div class="stat-label">病变数量</div>
-                    </div>
-                  </el-col>
-                  <el-col :span="8">
-                    <div class="stat-card">
-                      <div class="stat-value">{{ result.data.lesion_area }}</div>
-                      <div class="stat-label">病变像素</div>
-                    </div>
-                  </el-col>
-                  <el-col :span="8">
-                    <div class="stat-card">
-                      <div class="stat-value highlight">{{ result.data.lesion_ratio }}</div>
-                      <div class="stat-label">病变占比</div>
-                    </div>
-                  </el-col>
-                </el-row>
-              </div>
-            </el-tab-pane>
-
-            <!-- Standard Segmentation Result -->
-            <el-tab-pane label="分割结果" name="segment" v-else-if="result.data.images?.original">
-              <!-- Images Row -->
-              <div class="result-images">
-                <div class="image-col" v-if="result.data.images?.original">
-                  <h4>原始图片</h4>
-                  <el-image :src="result.data.images.original" fit="contain" class="result-image" />
-                </div>
-                <div class="image-col" v-if="result.data.images?.mask">
-                  <h4>血管分割掩码</h4>
-                  <el-image :src="result.data.images.mask" fit="contain" class="result-image" />
-                </div>
-              </div>
-            </el-tab-pane>
-
-            <!-- Classification Result -->
-            <el-tab-pane label="分类结果" name="classify" v-if="result.task === 'binary_classification'">
-              <div class="classify-result">
-                <div class="classify-card" :class="result.data.predicted_class === 1 ? 'danger' : 'normal'">
-                  <el-icon :size="48"><Warning v-if="result.data.predicted_class === 1" /><CircleCheck v-else /></el-icon>
-                  <div class="classify-label">{{ result.data.predicted_class === 1 ? 'DR 阳性' : '健康' }}</div>
-                  <div class="classify-prob">概率: {{ (result.data.probability * 100).toFixed(1) }}%</div>
-                  <div class="classify-conf">置信度: {{ (result.data.confidence * 100).toFixed(1) }}%</div>
-                </div>
-              </div>
-            </el-tab-pane>
-
-            <el-tab-pane label="AI 分析报告" name="ai" v-if="result.data.ai_analysis">
-              <div class="ai-report-content" v-html="formatMarkdown(result.data.ai_analysis.content)"></div>
-            </el-tab-pane>
-          </el-tabs>
         </div>
-      </section>
-    </main>
+      </div>
+    </section>
+
+    <!-- Right Column: AI Analysis Report -->
+    <aside class="right-column">
+      <!-- Empty State -->
+      <div class="empty-state" v-if="!aiReport">
+        <el-icon class="empty-icon"><Document /></el-icon>
+        <h3>等待分析报告</h3>
+        <p>上传图片并分析后显示AI诊断报告</p>
+      </div>
+
+      <!-- AI Report Content -->
+      <div class="report-content" v-if="aiReport">
+        <div class="report-header">
+          <el-icon :size="24"><Document /></el-icon>
+          <span>AI 诊断报告</span>
+        </div>
+
+        <div class="ai-report">
+          <div class="report-text" v-html="formatMarkdown(aiReport)"></div>
+        </div>
+
+        <!-- Download -->
+        <div class="download-section">
+          <el-button @click="downloadReport" v-if="aiReport">
+            <el-icon><Download /></el-icon>
+            下载报告
+          </el-button>
+        </div>
+      </div>
+
+      <!-- File Info -->
+      <div class="file-info" v-if="uploadedFile">
+        <span class="file-name">{{ uploadedFile.name }}</span>
+        <span class="file-size">{{ (uploadedFile.size / 1024).toFixed(1) }} KB</span>
+      </div>
+    </aside>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import axios from 'axios'
-import { View, MagicStick, UploadFilled, RefreshRight, Download, Picture, InfoFilled, Warning, CircleCheck } from '@element-plus/icons-vue'
+import {
+  View, UploadFilled, MagicStick, RefreshRight, Download,
+  Document, Picture
+} from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 // API 配置
@@ -298,46 +216,17 @@ const progressStatus = ref<'success' | 'exception' | 'warning' | ''>('')
 const statusMessage = ref('')
 const uploadedFile = ref<File | null>(null)
 const previewUrl = ref('')
-const result = ref<any>(null)
-const settingsOpen = ref(['settings'])
-const activeTab = ref('segment')
+const currentTask = ref<'vessel' | 'ma' | 'ai' | ''>('')
+
+// 结果数据
+const vesselResult = ref<any>(null)
+const maResult = ref<any>(null)
+const aiReport = ref('')
 
 // 设置
 const settings = reactive({
-  taskType: 'ai',  // ai, idrid_ma, vessel_seg, dr_classify
-  run_segmentation: true,
-  run_classification: true,
-  seg_checkpoint: 'checkpoints/seg/checkpoint_108_linear.pth',
-  cls_checkpoint: 'checkpoints/single_cls/checkpoint_teacher_linear.pth',
-  ma_checkpoint: 'checkpoints/idrid_ma/net.pt7',
   seg_threshold: 0.5,
-  ma_threshold: 0.5,
-  temperature: 0.7
-})
-
-// 计算属性
-const analyzeButtonText = computed(() => {
-  switch (settings.taskType) {
-    case 'idrid_ma': return '开始微动脉瘤分割'
-    case 'vessel_seg': return '开始血管分割'
-    case 'dr_classify': return '开始 DR 分类'
-    default: return '开始 AI 分析'
-  }
-})
-
-const resultTitle = computed(() => {
-  if (!result.value) return ''
-  if (result.value.task === 'idrid_microaneurysm_segmentation') return '微动脉瘤分割完成'
-  if (result.value.task === 'binary_classification') return 'DR 分类完成'
-  return '分析完成'
-})
-
-const resultSubtitle = computed(() => {
-  if (!result.value) return ''
-  if (result.value.data.metadata?.total_time_ms) {
-    return `耗时: ${result.value.data.metadata.total_time_ms}ms | 模型: ${result.value.data.ai_analysis?.model_used || 'VisionFM'}`
-  }
-  return `任务: ${result.value.task}`
+  ma_threshold: 0.5
 })
 
 // 文件处理
@@ -360,110 +249,80 @@ const clearPreview = () => {
   uploadedFile.value = null
 }
 
-// 开始分析 - 根据任务类型调用不同接口
+// 开始分析 - 一次性执行三个任务
 const startAnalysis = async () => {
   if (!uploadedFile.value) return
 
   processing.value = true
   progress.value = 0
   progressStatus.value = ''
-  statusMessage.value = '准备上传...'
 
   const formData = new FormData()
   formData.append('file', uploadedFile.value)
 
-  const uploadProgress = (progressEvent: any) => {
+  const uploadProgress = (progressEvent: any, taskMaxProgress: number) => {
     if (progressEvent.total) {
-      const percentCompleted = Math.round((progressEvent.loaded * 30) / progressEvent.total)
-      progress.value = Math.min(percentCompleted, 30)
+      const percentCompleted = Math.round((progressEvent.loaded * taskMaxProgress) / progressEvent.total)
+      progress.value = Math.min(percentCompleted, taskMaxProgress)
     }
   }
 
   try {
-    statusMessage.value = '正在上传...'
-    let response: any
+    // 任务1: 血管分割
+    statusMessage.value = '步骤1/3: 血管分割中...'
+    currentTask.value = 'vessel'
+    const vesselFormData = new FormData()
+    vesselFormData.append('file', uploadedFile.value!)
+    vesselFormData.append('threshold', settings.seg_threshold.toString())
+    vesselFormData.append('input_size', '512')
 
-    // 根据任务类型调用不同的 API
-    switch (settings.taskType) {
-      case 'idrid_ma':
-        // IDRiD 微动脉瘤分割
-        formData.append('checkpoint', settings.ma_checkpoint)
-        formData.append('threshold', settings.ma_threshold.toString())
-        formData.append('input_size', '96')
-        response = await axios.post(`${API_BASE}/api/idrid/ma`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: uploadProgress,
-          timeout: 120000
-        })
-        break
+    const vesselResponse = await axios.post(`${API_BASE}/api/segment`, vesselFormData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => uploadProgress(e, 25),
+      timeout: 120000
+    })
 
-      case 'vessel_seg':
-        // 血管分割
-        formData.append('checkpoint', settings.seg_checkpoint)
-        formData.append('threshold', settings.seg_threshold.toString())
-        formData.append('input_size', '512')
-        response = await axios.post(`${API_BASE}/api/segment`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: uploadProgress,
-          timeout: 120000
-        })
-        // 转换格式以统一显示
-        response = {
-          data: {
-            success: true,
-            task: 'vessel_segmentation',
-            data: {
-              images: {
-                original: response.data.data.originalImage,
-                mask: response.data.data.maskImage
-              }
-            }
-          }
-        }
-        response.data = response.data.data
-        break
+    vesselResult.value = vesselResponse.data.data
+    progress.value = 30
+    await new Promise(resolve => setTimeout(resolve, 200))
 
-      case 'dr_classify':
-        // DR 二分类
-        formData.append('checkpoint', settings.cls_checkpoint)
-        formData.append('input_size', '224')
-        response = await axios.post(`${API_BASE}/api/classify/binary`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: uploadProgress,
-          timeout: 120000
-        })
-        break
+    // 任务2: 微动脉瘤分割
+    statusMessage.value = '步骤2/3: 微动脉瘤分割中...'
+    currentTask.value = 'ma'
+    const maFormData = new FormData()
+    maFormData.append('file', uploadedFile.value!)
+    maFormData.append('threshold', settings.ma_threshold.toString())
+    maFormData.append('input_size', '96')
 
-      case 'ai':
-      default:
-        // AI 智能分析
-        formData.append('run_segmentation', settings.run_segmentation.toString())
-        formData.append('run_classification', settings.run_classification.toString())
-        formData.append('seg_checkpoint', settings.seg_checkpoint)
-        formData.append('cls_checkpoint', settings.cls_checkpoint)
-        formData.append('seg_threshold', settings.seg_threshold.toString())
-        formData.append('temperature', settings.temperature.toString())
-        response = await axios.post(`${API_BASE}/api/ai/analyze`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: uploadProgress,
-          timeout: 300000
-        })
-        break
-    }
+    const maResponse = await axios.post(`${API_BASE}/api/idrid/ma`, maFormData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => uploadProgress(e, 50),
+      timeout: 120000
+    })
 
-    progress.value = 50
-    statusMessage.value = '处理中...'
-    await new Promise(resolve => setTimeout(resolve, 500))
+    maResult.value = maResponse.data.data
+    progress.value = 60
+    await new Promise(resolve => setTimeout(resolve, 200))
 
-    progress.value = 80
-    await new Promise(resolve => setTimeout(resolve, 300))
+    // 任务3: AI分析
+    statusMessage.value = '步骤3/3: AI分析中...'
+    currentTask.value = 'ai'
+    const aiFormData = new FormData()
+    aiFormData.append('file', uploadedFile.value!)
+    aiFormData.append('seg_threshold', settings.seg_threshold.toString())
+
+    const aiResponse = await axios.post(`${API_BASE}/api/ai/analyze`, aiFormData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => uploadProgress(e, 80),
+      timeout: 300000
+    })
+
+    aiReport.value = aiResponse.data.data.ai_analysis.content
     progress.value = 100
     progressStatus.value = 'success'
-    statusMessage.value = '完成！'
+    statusMessage.value = '分析完成！'
 
-    result.value = response.data
-    activeTab.value = 'segment'  // 默认显示分割结果
-    ElMessage.success('分析完成')
+    ElMessage.success('全部分析完成')
 
   } catch (error: any) {
     console.error('处理失败:', error)
@@ -471,46 +330,45 @@ const startAnalysis = async () => {
     const errorMessage = error.response?.data?.detail || error.message || '未知错误'
     ElMessage.error(`处理失败: ${errorMessage}`)
   } finally {
-    setTimeout(() => {
-      processing.value = false
-    }, 500)
+    currentTask.value = ''
+    setTimeout(() => { processing.value = false }, 500)
   }
 }
 
 // 新建分析
 const handleNewTask = () => {
-  result.value = null
+  vesselResult.value = null
+  maResult.value = null
+  aiReport.value = ''
   progress.value = 0
   progressStatus.value = ''
   statusMessage.value = ''
-  activeTab.value = 'segment'
   clearPreview()
-}
-
-// 下载图片
-const downloadImage = (url: string, prefix: string) => {
-  if (!url) return
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `visionfm_${prefix}_${Date.now()}.png`
-  link.click()
-  ElMessage.success('已下载')
 }
 
 // 下载报告
 const downloadReport = () => {
-  if (!result.value) return
+  if (!aiReport.value) return
   const reportData = {
-    analysis_result: result.value.data.ai_analysis?.content,
-    model_results: result.value.data.model_results,
-    metadata: result.value.data.metadata,
+    analysis_result: aiReport.value,
+    vessel_segmentation: vesselResult.value ? {
+      original_image: vesselResult.value.originalImage,
+      mask_image: vesselResult.value.maskImage
+    } : null,
+    microaneurysm_segmentation: maResult.value ? {
+      original_image: maResult.value.originalImage,
+      mask_image: maResult.value.maskImage,
+      num_lesions: maResult.value.num_lesions,
+      lesion_area: maResult.value.lesion_area,
+      lesion_ratio: maResult.value.lesion_ratio
+    } : null,
     generated_at: new Date().toISOString()
   }
   const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `ai_analysis_report_${Date.now()}.json`
+  link.download = `visionfm_analysis_report_${Date.now()}.json`
   link.click()
   URL.revokeObjectURL(url)
   ElMessage.success('报告已下载')
@@ -533,309 +391,201 @@ const formatMarkdown = (content: string): string => {
 
 <style scoped>
 .app {
+  display: flex;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background: #0d1b2a;
+  overflow: hidden;
+}
+
+/* Left Column */
+.left-column {
+  width: 280px;
+  background: #1e3a5f;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-
-/* Header */
-.app-header {
-  height: 60px;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
+  padding: 16px;
+  gap: 16px;
   flex-shrink: 0;
+  overflow-y: auto;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.logo-icon {
-  font-size: 28px;
-  color: #00d9ff;
-}
-
-.app-title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  color: #fff;
-  background: linear-gradient(135deg, #00d9ff 0%, #00ff88 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.header-subtitle {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
-  margin-left: 8px;
-  padding-left: 12px;
-  border-left: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-/* Main Layout */
-.app-main {
-  flex: 1;
-  display: flex;
-  gap: 20px;
-  padding: 20px 24px;
-  overflow: hidden;
-}
-
-/* Left Panel */
-.left-panel {
-  width: 360px;
-  flex-shrink: 0;
+.left-column .upper-section {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 16px;
-  padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Task Selector */
-.task-selector {
-  margin-bottom: 16px;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-}
-
-.task-label {
-  display: block;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13px;
-  margin-bottom: 8px;
-}
-
-.task-radio-group {
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.task-radio-group :deep(.el-radio-button) {
-  flex: 1;
-}
-
-.task-radio-group :deep(.el-radio-button__inner) {
-  width: 100%;
-  padding: 8px 4px;
-  font-size: 12px;
-}
-
-.task-desc {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px;
-  background: rgba(0, 217, 255, 0.1);
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.task-desc .el-icon {
-  color: #00d9ff;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-/* Upload */
-.upload-section {
+.left-column .lower-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-top: auto;
 }
 
-.upload-area {
-  width: 100%;
-  min-height: 160px;
+.system-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.upload-area :deep(.el-upload-dragger) {
-  background: rgba(255, 255, 255, 0.03);
-  border: 2px dashed rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  transition: all 0.3s;
+.system-name .logo-icon {
+  font-size: 24px;
+  color: #00d9ff;
 }
 
-.upload-area :deep(.el-upload-dragger:hover) {
-  border-color: #00d9ff;
-  background: rgba(0, 217, 255, 0.05);
+.system-name span {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
 }
 
-.upload-icon {
-  font-size: 48px;
-  color: rgba(255, 255, 255, 0.3);
-  margin-bottom: 12px;
-}
-
-.upload-text {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-
-.upload-hint {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 12px;
-}
-
-.preview-box {
+.intro-section {
+  padding: 12px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
-  padding: 12px;
 }
 
-.preview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
+.intro-section .intro-text {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.section-title {
+  display: block;
   color: rgba(255, 255, 255, 0.7);
   font-size: 13px;
-}
-
-.preview-image {
-  width: 100%;
-  max-height: 180px;
-  border-radius: 4px;
+  margin-bottom: 10px;
 }
 
 /* Settings */
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
-.settings-section :deep(.el-collapse) {
-  border: none;
-  background: transparent;
+.threshold-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
 }
 
-.settings-section :deep(.el-collapse-item__header) {
-  background: rgba(255, 255, 255, 0.05);
-  border: none;
-  color: rgba(255, 255, 255, 0.7);
+.threshold-control span {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+}
+
+/* Upload */
+.upload-btn {
+  width: 100%;
+}
+
+.upload-btn :deep(.el-upload-dragger) {
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px dashed rgba(255, 255, 255, 0.15);
   border-radius: 8px;
+  padding: 20px;
+  transition: all 0.3s;
 }
 
-.settings-section :deep(.el-collapse-item__wrap) {
-  background: transparent;
-  border: none;
+.upload-btn :deep(.el-upload-dragger:hover) {
+  border-color: #00d9ff;
 }
 
-.settings-section :deep(.el-collapse-item__content) {
-  padding: 12px 0;
-  color: rgba(255, 255, 255, 0.7);
+.upload-icon {
+  font-size: 32px;
+  color: rgba(255, 255, 255, 0.3);
+  margin-bottom: 8px;
 }
 
-.settings-section :deep(.el-form-item) {
-  margin-bottom: 12px;
-}
-
-.settings-section :deep(.el-form-item__label) {
+.upload-btn span {
   color: rgba(255, 255, 255, 0.6);
   font-size: 13px;
 }
 
-.slider-container {
+.preview-box {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 10px;
 }
 
-.slider-container :deep(.el-slider) {
-  flex: 1;
+.preview-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
 }
 
-.slider-value {
-  min-width: 40px;
-  text-align: right;
-  color: #00d9ff;
-  font-size: 13px;
-}
-
-.analyze-btn {
+.preview-image {
   width: 100%;
-  height: 48px;
-  font-size: 16px;
+  max-height: 120px;
+  border-radius: 4px;
+}
+
+/* Actions */
+.actions-section {
+  margin-top: auto;
+}
+
+.start-btn {
+  width: 100%;
+  height: 44px;
   background: linear-gradient(135deg, #00d9ff 0%, #00ff88 100%);
   border: none;
   color: #1a1a2e;
   font-weight: 600;
 }
 
-.analyze-btn:hover {
-  opacity: 0.9;
-}
-
-.analyze-btn:disabled {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.3);
-}
-
-/* Processing */
-.processing-section {
+/* Middle Column */
+.middle-column {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
+  background: #1b263b;
+  padding: 16px;
   gap: 16px;
+  overflow: hidden;
+  min-width: 0;
 }
 
-.status-text {
+.middle-column .result-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.middle-column .upper-section {
+  min-height: 0;
+}
+
+.middle-column .lower-section {
+  min-height: 0;
+}
+
+.section-header {
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.section-header span {
   color: rgba(255, 255, 255, 0.8);
   font-size: 14px;
+  font-weight: 600;
 }
 
-.file-info-mini {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 12px;
-}
-
-/* Result Actions Mini */
-.result-actions-mini {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.result-actions-mini .el-button {
-  flex: 1;
-  min-width: 80px;
-}
-
-/* Right Panel */
-.right-panel {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 16px;
-  padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Empty State */
 .empty-state {
   flex: 1;
   display: flex;
@@ -846,207 +596,169 @@ const formatMarkdown = (content: string): string => {
 }
 
 .empty-icon {
-  font-size: 80px;
-  margin-bottom: 20px;
+  font-size: 48px;
+  margin-bottom: 12px;
 }
 
 .empty-state h3 {
   margin: 0 0 8px 0;
-  font-size: 20px;
+  font-size: 16px;
   color: rgba(255, 255, 255, 0.5);
 }
 
 .empty-state p {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
 }
 
-/* Result Container */
-.result-container {
+/* Processing */
+.processing-status {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 16px;
-  height: 100%;
 }
 
-.result-header :deep(.el-alert) {
-  background: rgba(0, 255, 136, 0.1);
-  border: 1px solid rgba(0, 255, 136, 0.3);
-}
-
-/* Tabs */
-.result-tabs {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.result-tabs :deep(.el-tabs__header) {
-  margin-bottom: 16px;
-}
-
-.result-tabs :deep(.el-tabs__nav-wrap::after) {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.result-tabs :deep(.el-tabs__item) {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.result-tabs :deep(.el-tabs__item.is-active) {
-  color: #00d9ff;
-}
-
-.result-tabs :deep(.el-tabs__content) {
-  flex: 1;
-  overflow-y: auto;
+.status-text {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 /* Result Images */
 .result-images {
-  display: flex;
-  gap: 16px;
-  height: 100%;
-}
-
-.image-col {
   flex: 1;
   display: flex;
-  flex-direction: column;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  overflow: hidden;
+  gap: 12px;
+  padding: 12px;
+  min-height: 0;
 }
 
-.image-col h4 {
-  margin: 0;
-  padding: 10px 14px;
+.image-card {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.image-header {
+  padding: 8px 12px;
   background: rgba(255, 255, 255, 0.05);
-  font-size: 13px;
-  font-weight: 500;
   color: rgba(255, 255, 255, 0.7);
-  text-align: center;
+  font-size: 12px;
 }
 
 .result-image {
   flex: 1;
   width: 100%;
-  min-height: 200px;
+  min-height: 150px;
 }
 
-/* AI Report Content */
-.ai-report-content {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 20px;
-  height: 100%;
+/* Right Column */
+.right-column {
+  flex: 1;
+  min-width: 280px;
+  background: #1e3a5f;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  flex-shrink: 0;
   overflow-y: auto;
-  font-size: 14px;
-  line-height: 1.8;
-  color: rgba(255, 255, 255, 0.85);
 }
 
-.ai-report-content :deep(h3) {
-  font-size: 16px;
+.report-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.report-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.report-header .el-icon {
   color: #00d9ff;
-  margin: 16px 0 12px 0;
 }
 
-.ai-report-content :deep(h4) {
+.report-header span {
+  color: #fff;
   font-size: 15px;
+  font-weight: 600;
+}
+
+/* AI Report */
+.ai-report {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.report-text {
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.report-text :deep(h3) {
+  font-size: 13px;
+  color: #00d9ff;
+  margin: 8px 0 6px 0;
+}
+
+.report-text :deep(h4) {
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.9);
-  margin: 14px 0 10px 0;
+  margin: 6px 0 4px 0;
 }
 
-.ai-report-content :deep(p) {
-  margin: 8px 0;
-}
-
-.ai-report-content :deep(ul) {
-  margin: 8px 0;
-  padding-left: 20px;
-}
-
-.ai-report-content :deep(li) {
+.report-text :deep(p) {
   margin: 4px 0;
 }
 
-.ai-report-content :deep(strong) {
+.report-text :deep(strong) {
   color: #00ff88;
 }
 
-/* Result Stats */
-.result-stats {
-  margin-top: 20px;
-}
-
-.stat-card {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  padding: 16px;
-  text-align: center;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #00d9ff;
-}
-
-.stat-value.highlight {
-  color: #ff6b6b;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-  margin-top: 4px;
-}
-
-/* Classification Result */
-.classify-result {
-  display: flex;
-  justify-content: center;
-  padding: 40px 20px;
-}
-
-.classify-card {
+/* Download */
+.download-section {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 40px 60px;
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.2);
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.classify-card.normal {
-  border: 2px solid rgba(0, 255, 136, 0.3);
+.download-section .el-button {
+  width: 100%;
 }
 
-.classify-card.normal .el-icon {
-  color: #00ff88;
+/* File Info */
+.file-info {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
 }
 
-.classify-card.danger {
-  border: 2px solid rgba(255, 107, 107, 0.3);
-}
-
-.classify-card.danger .el-icon {
-  color: #ff6b6b;
-}
-
-.classify-label {
-  font-size: 24px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.classify-prob, .classify-conf {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
 }
 
 /* Scrollbar */
@@ -1062,9 +774,5 @@ const formatMarkdown = (content: string): string => {
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
 }
 </style>

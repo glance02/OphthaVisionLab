@@ -14,7 +14,7 @@ from inference_service import inference_service
 from routers.ai_analysis import router as ai_router
 
 app = FastAPI(
-    title="VisionFM Multi-Task API",
+    title="AI眼科智能分析 API",
     description="眼科人工智能多任务服务 - 支持分类、分割、AI 智能分析",
     version="2.1.0"
 )
@@ -40,7 +40,7 @@ app.include_router(ai_router)
 async def root():
     """根路径 - API 信息"""
     return {
-        "name": "VisionFM Multi-Task API",
+        "name": "AI眼科只能分析 API",
         "version": "2.1.0",
         "description": "眼科人工智能通用基础模型服务",
         "tasks": {
